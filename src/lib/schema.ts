@@ -56,4 +56,16 @@ export const companyDocsSchema = z.object({
   }),
 });
 
+/** iCal feed add — mirrors backend rules (source ≤50, http(s) URL ≤2048). */
+export const icalFeedSchema = z.object({
+  source: z.string().min(1, "المصدر مطلوب").max(50, "المصدر بحد أقصى 50 حرفًا"),
+  url: z
+    .string()
+    .max(2048, "الرابط طويل جدًا")
+    .regex(/^https?:\/\//i, "الرابط يجب أن يبدأ بـ http(s)://"),
+});
+
+/** Manual calendar block — reason optional, ≤255 chars. */
+export const blockReasonSchema = z.string().max(255, "السبب بحد أقصى 255 حرفًا").optional();
+
 export type UnitInput = z.infer<typeof unitSchema>;

@@ -1,13 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { api } from "@/lib/api/client";
+import { api, ApiError } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/shared/states";
-import type { CalendarDay, DayStatus } from "@/types";
+import { icalFeedSchema } from "@/lib/schema";
+import type { CalendarDay, DayStatus, ICalFeed } from "@/types";
+import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
-import { RefreshCw, AlertCircle, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  RefreshCw,
+  AlertCircle,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Trash2,
+  Link2,
+  Copy,
+} from "lucide-react";
 
 const dayColors: Record<DayStatus, string> = {
   available: "bg-status-approved/15 text-status-approved hover:bg-status-approved/25",
@@ -23,6 +35,20 @@ const legend: { key: DayStatus; dot: string }[] = [
   { key: "external", dot: "bg-[#8A5FB0]" },
 ];
 
+const inputCls =
+  "w-full rounded-xl border border-line bg-cream/40 px-4 py-2.5 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-brand focus:bg-white";
+
+function formatSync(iso: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar" : "en-US", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    calendar: "gregory",
+    numberingSystem: "latn",
+  }).format(new Date(iso));
+}
+
 export default function CalendarPage() {
   const { t, locale } = useLocale();
   const c = t.calendar;
@@ -32,16 +58,27 @@ export default function CalendarPage() {
 
   const cal = useAsync(() => (active ? api.getCalendar(active, "2026-07") : Promise.resolve([])), [active]);
   const feeds = useAsync(() => (active ? api.listFeeds(active) : Promise.resolve([])), [active]);
+  const icalExport = useAsync(
+    () => (active ? api.getIcalExport(active) : Promise.resolve({ url: "" })),
+    [active],
+  );
 
   const [viewDate, setViewDate] = useState(new Date(2026, 6, 1)); // July 2026 (mock month)
   const [overrides, setOverrides] = useState<Record<string, DayStatus>>({});
   const [selected, setSelected] = useState<string[]>([]);
+  const [actionError, setActionError] = useState<string>();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [blockReason, setBlockReason] = useState("");
 
   const statusMap = useMemo(() => {
     const m: Record<string, DayStatus> = {};
     (cal.data ?? []).forEach((d: CalendarDay) => (m[d.date] = d.status));
+    return m;
+  }, [cal.data]);
+  const dayMeta = useMemo(() => {
+    const m: Record<string, CalendarDay> = {};
+    (cal.data ?? []).forEach((d: CalendarDay) => (m[d.date] = d));
     return m;
   }, [cal.data]);
 
@@ -67,22 +104,39 @@ export default function CalendarPage() {
     if (s === "booked" || s === "external") return;
     setSelected((prev) => (prev.includes(date) ? prev.filter((x) => x !== date) : [...prev, date]));
   }
-  function apply(status: DayStatus) {
-    setOverrides((o) => ({ ...o, ...Object.fromEntries(selected.map((d) => [d, status])) }));
-    if (active) status === "blocked" ? api.blockDates(active, selected) : api.unblockDates(active, selected);
-    setSelected([]);
+
+  /** Block/unblock the selection — handles the backend 409 DATE_UNAVAILABLE. */
+  async function apply(status: Extract<DayStatus, "blocked" | "available">) {
+    if (!active) return;
+    setActionError(undefined);
+    try {
+      if (status === "blocked") await api.blockDates(active, selected);
+      else await api.unblockDates(active, selected);
+      setOverrides((o) => ({ ...o, ...Object.fromEntries(selected.map((d) => [d, status])) }));
+      setSelected([]);
+    } catch (e) {
+      setActionError(e instanceof ApiError ? e.message : t.states.errorBody);
+    }
   }
-  function quickBlock() {
-    if (!from || !to) return;
+
+  async function quickBlock() {
+    if (!from || !to || !active) return;
     const start = new Date(from);
     const end = new Date(to);
     const dates: string[] = [];
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
     }
-    setOverrides((o) => ({ ...o, ...Object.fromEntries(dates.map((d) => [d, "blocked" as DayStatus])) }));
-    setFrom("");
-    setTo("");
+    setActionError(undefined);
+    try {
+      await api.blockDates(active, dates, blockReason.trim() || undefined);
+      setOverrides((o) => ({ ...o, ...Object.fromEntries(dates.map((d) => [d, "blocked" as DayStatus])) }));
+      setFrom("");
+      setTo("");
+      setBlockReason("");
+    } catch (e) {
+      setActionError(e instanceof ApiError ? e.message : t.states.errorBody);
+    }
   }
 
   if (units.loading) return <LoadingSkeleton rows={3} />;
@@ -146,13 +200,19 @@ export default function CalendarPage() {
               {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
                 const date = dateStr(day);
                 const s = statusOf(date);
+                const meta = dayMeta[date];
                 const isSel = selected.includes(date);
                 const clickable = s !== "booked" && s !== "external";
+                const title =
+                  s === "booked" ? meta?.bookingCode :
+                  s === "external" ? meta?.source :
+                  s === "blocked" ? meta?.reason ?? undefined : undefined;
                 return (
                   <button
                     key={date}
                     onClick={() => toggleDay(date)}
                     disabled={!clickable}
+                    title={title}
                     className={cn(
                       "grid aspect-square place-items-center rounded-2xl text-sm font-semibold transition",
                       isSel ? "bg-amber-500 text-white" : dayColors[s],
@@ -164,6 +224,12 @@ export default function CalendarPage() {
                 );
               })}
             </div>
+
+            {actionError && (
+              <div className="mt-4 flex items-center gap-2 rounded-2xl bg-status-rejected/10 px-4 py-3 text-sm text-status-rejected">
+                <AlertCircle className="h-4 w-4 shrink-0" /> {actionError}
+              </div>
+            )}
 
             {selected.length > 0 && (
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-cream px-4 py-3">
@@ -187,53 +253,172 @@ export default function CalendarPage() {
 
       {/* Bottom cards */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-3xl bg-white p-6 shadow-card">
-          <h3 className="mb-4 text-lg font-bold text-ink">{c.icalIntegrations}</h3>
-          <div className="space-y-3">
-            {(feeds.data ?? []).map((f, i) => (
-              <div key={f.id} className="flex items-center justify-between rounded-2xl bg-cream/50 px-4 py-3">
-                <div>
-                  <div className="font-semibold text-ink">{f.source}</div>
-                  <div className="text-xs text-ink-faint">{c.lastSync(c.syncTimes[i] ?? c.syncTimes[0])}</div>
-                </div>
-                {f.status === "synced" ? (
-                  <span className="rounded-full bg-status-approved/15 px-3 py-1 text-xs font-semibold text-status-approved">{c.synced}</span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-status-rejected/15 px-3 py-1 text-xs font-semibold text-status-rejected">
-                    <AlertCircle className="h-3 w-3" /> {c.error}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <FeedsCard
+          unitId={active!}
+          feeds={feeds.data ?? []}
+          locale={locale}
+          onChanged={() => { feeds.reload(); cal.reload(); }}
+        />
 
-        <div className="rounded-3xl bg-white p-6 shadow-card">
-          <h3 className="text-lg font-bold text-ink">{c.quickBlock}</h3>
-          <p className="mt-1 text-sm text-ink-muted">{c.quickBlockSub}</p>
-          <div className="mt-4 space-y-3">
-            <input
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className="w-full rounded-xl border border-line bg-cream/40 px-4 py-2.5 text-sm text-ink outline-none focus:border-brand focus:bg-white"
-            />
-            <input
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className="w-full rounded-xl border border-line bg-cream/40 px-4 py-2.5 text-sm text-ink outline-none focus:border-brand focus:bg-white"
-            />
-            <button
-              onClick={quickBlock}
-              disabled={!from || !to}
-              className="w-full rounded-xl bg-brand-dark py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
-            >
-              {c.blockSelectedDates}
-            </button>
+        <div className="space-y-6">
+          {/* iCal export — URL is server-minted (§5.5), never built client-side */}
+          <div className="rounded-3xl bg-white p-6 shadow-card">
+            <h3 className="text-lg font-bold text-ink">{c.exportTitle}</h3>
+            <p className="mt-1 text-sm text-ink-muted">{c.exportSub}</p>
+            <ExportUrl url={icalExport.data?.url ?? ""} copiedLabel={t.common.copied} copyLabel={t.common.copyLink} />
+          </div>
+
+          <div className="rounded-3xl bg-white p-6 shadow-card">
+            <h3 className="text-lg font-bold text-ink">{c.quickBlock}</h3>
+            <p className="mt-1 text-sm text-ink-muted">{c.quickBlockSub}</p>
+            <div className="mt-4 space-y-3">
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls} />
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls} />
+              <input
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value.slice(0, 255))}
+                placeholder={c.blockReasonPh}
+                className={inputCls}
+              />
+              <button
+                onClick={quickBlock}
+                disabled={!from || !to}
+                className="w-full rounded-xl bg-brand-dark py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
+              >
+                {c.blockSelectedDates}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------------- iCal feeds (per-feed sync/delete + add form, §5.4) ---------------- */
+function FeedsCard({
+  unitId,
+  feeds,
+  locale,
+  onChanged,
+}: {
+  unitId: string;
+  feeds: ICalFeed[];
+  locale: Locale;
+  onChanged: () => void;
+}) {
+  const { t } = useLocale();
+  const c = t.calendar;
+  const [source, setSource] = useState("");
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState<string>(); // feedId being synced/deleted, or "add"
+  const [error, setError] = useState<string>();
+
+  async function run(key: string, fn: () => Promise<unknown>) {
+    setBusy(key);
+    setError(undefined);
+    try {
+      await fn();
+      onChanged();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t.states.errorBody);
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
+  function addFeed() {
+    const parsed = icalFeedSchema.safeParse({ source: source.trim(), url: url.trim() });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message);
+      return;
+    }
+    void run("add", async () => {
+      await api.addFeed(unitId, parsed.data.source, parsed.data.url);
+      setSource("");
+      setUrl("");
+    });
+  }
+
+  return (
+    <div className="rounded-3xl bg-white p-6 shadow-card">
+      <h3 className="mb-4 text-lg font-bold text-ink">{c.icalIntegrations}</h3>
+      <div className="space-y-3">
+        {feeds.map((f) => (
+          <div key={f.id} className="flex items-center justify-between gap-3 rounded-2xl bg-cream/50 px-4 py-3">
+            <div className="min-w-0">
+              <div className="truncate font-semibold text-ink">{f.source}</div>
+              <div className="text-xs text-ink-faint">
+                {f.lastSync ? c.lastSync(formatSync(f.lastSync, locale)) : c.lastSyncNever}
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {f.status === "synced" ? (
+                <span className="rounded-full bg-status-approved/15 px-3 py-1 text-xs font-semibold text-status-approved">{c.synced}</span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-status-rejected/15 px-3 py-1 text-xs font-semibold text-status-rejected">
+                  <AlertCircle className="h-3 w-3" /> {c.error}
+                </span>
+              )}
+              <button
+                onClick={() => run(f.id, () => api.syncFeed(unitId, f.id))}
+                title={c.syncNow}
+                className="grid h-8 w-8 place-items-center rounded-full text-ink-muted transition hover:bg-cream hover:text-brand"
+              >
+                <RefreshCw className={cn("h-4 w-4", busy === f.id && "animate-spin")} />
+              </button>
+              <button
+                onClick={() => run(`del-${f.id}`, () => api.deleteFeed(unitId, f.id))}
+                title={t.common.delete}
+                className="grid h-8 w-8 place-items-center rounded-full text-ink-muted transition hover:bg-status-rejected/10 hover:text-status-rejected"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add feed — backend validates the URL is a real .ics (400 INVALID_ICAL) */}
+      <div className="mt-4 border-t border-line pt-4">
+        <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-ink">
+          <Plus className="h-4 w-4 text-brand" /> {c.addFeed}
+        </div>
+        <div className="space-y-2">
+          <input value={source} onChange={(e) => setSource(e.target.value)} placeholder={c.feedSourcePh} className={inputCls} />
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={c.feedUrlPh} dir="ltr" className={inputCls} />
+          {error && <p className="text-xs text-status-rejected">{error}</p>}
+          <button
+            onClick={addFeed}
+            disabled={busy === "add" || !source.trim() || !url.trim()}
+            className="w-full rounded-xl border-2 border-brand py-2 text-sm font-semibold text-brand transition hover:bg-brand-soft disabled:opacity-50"
+          >
+            {busy === "add" ? "…" : c.add}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Export URL with copy ---------------- */
+function ExportUrl({ url, copyLabel, copiedLabel }: { url: string; copyLabel: string; copiedLabel: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="mt-4 flex items-center gap-2 rounded-xl border border-line bg-cream/40 px-3 py-2.5">
+      <Link2 className="h-4 w-4 shrink-0 text-ink-faint" />
+      <span dir="ltr" className="flex-1 truncate text-sm text-ink-muted">{url || "…"}</span>
+      <button
+        onClick={() => {
+          navigator.clipboard?.writeText(url);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+        title={copied ? copiedLabel : copyLabel}
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-ink-muted transition hover:bg-cream hover:text-brand"
+      >
+        {copied ? <Check className="h-4 w-4 text-status-approved" /> : <Copy className="h-4 w-4" />}
+      </button>
     </div>
   );
 }

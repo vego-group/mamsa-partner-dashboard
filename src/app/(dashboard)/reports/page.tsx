@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { api } from "@/lib/api/client";
+import { api, IS_MOCK } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
 import { Card, Button } from "@/components/ui";
@@ -12,6 +12,7 @@ import { SAUDI_CITIES } from "@/lib/constants";
 import {
   deltaPct,
   monthLabel,
+  zeroFillMonths,
   enrichPerUnit,
   type EnrichedPerUnit,
 } from "@/features/overview/lib/derive-metrics";
@@ -59,16 +60,37 @@ export default function ReportsPage() {
 
   const summary = useAsync(() => api.getReportsSummary(from, to), [range]);
   const units = useAsync(() => api.listUnits());
+  const [exporting, setExporting] = useState<"pdf" | "csv">();
 
   if (summary.loading || units.loading) return <LoadingSkeleton rows={4} />;
   if (summary.error || !summary.data) return <ErrorState onRetry={summary.reload} />;
 
   const d = summary.data;
-  const revenueAmounts = d.revenueByMonth.map((m) => m.amount);
-  const bookingCounts = d.bookingsByMonth.map((m) => m.count);
-  const revenueData = d.revenueByMonth.map((m) => ({ month: monthLabel(m.month, t.monthsShort), amount: m.amount }));
-  const bookingsData = d.bookingsByMonth.map((m) => ({ month: monthLabel(m.month, t.monthsShort), count: m.count }));
+  // Backend sends only months with data — zero-fill the window for charts/deltas
+  const revSeries = zeroFillMonths(d.revenueByMonth, from, to, "amount");
+  const bookSeries = zeroFillMonths(d.bookingsByMonth, from, to, "count");
+  const revenueAmounts = revSeries.map((m) => m.value);
+  const bookingCounts = bookSeries.map((m) => m.value);
+  const revenueData = revSeries.map((m) => ({ month: monthLabel(m.month, t.monthsShort), amount: m.value }));
+  const bookingsData = bookSeries.map((m) => ({ month: monthLabel(m.month, t.monthsShort), count: m.value }));
   const perUnit = enrichPerUnit(d.perUnit, units.data ?? []);
+
+  /** §7.2 — authenticated blob download (mock mode always yields CSV). */
+  async function exportFile(format: "pdf" | "csv") {
+    setExporting(format);
+    try {
+      const blob = await api.exportReport(from, to, format);
+      const ext = IS_MOCK ? "csv" : format;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mamsa-report-${from}_${to}.${ext}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(undefined);
+    }
+  }
 
   const ranges: { key: Range; label: string }[] = [
     { key: "6m", label: t.overview.range6m },
@@ -97,8 +119,10 @@ export default function ReportsPage() {
               </button>
             ))}
           </div>
-          {/* GET /reports/export?from=&to=&format=pdf (§7.2) — wire when backend lands */}
-          <Button className="rounded-full">
+          <Button variant="outline" className="rounded-full" disabled={exporting === "csv"} onClick={() => exportFile("csv")}>
+            <Download className="h-4 w-4" /> {t.reports.exportCsv}
+          </Button>
+          <Button className="rounded-full" disabled={exporting === "pdf"} onClick={() => exportFile("pdf")}>
             <Download className="h-4 w-4" /> {t.reports.exportPdf}
           </Button>
         </div>

@@ -42,6 +42,10 @@ export default function LoginPage() {
         return setError(t.login.errWrongCode);
       case "expired":
         return setError(t.login.errExpired);
+      case "locked":
+        return setError(t.login.errLocked);
+      case "rate_limited":
+        return setError(t.login.errRateLimited);
       case "pending":
         return setNotice(t.login.pending);
       case "suspended":

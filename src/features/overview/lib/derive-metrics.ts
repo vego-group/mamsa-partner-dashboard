@@ -26,6 +26,28 @@ export function monthLabel(month: string, monthsShort: string[]): string {
   return monthsShort[m - 1] ?? month;
 }
 
+/**
+ * Reports §7.1 returns ONLY months with data — zero-fill the [from, to] window
+ * (capped to the last 12 months of the range) so charts and deltas stay stable.
+ */
+export function zeroFillMonths<K extends string>(
+  entries: ({ month: string } & Record<K, number>)[],
+  from: string,
+  to: string,
+  key: K,
+): { month: string; value: number }[] {
+  const byMonth = new Map(entries.map((e) => [e.month, e[key]]));
+  const end = new Date(Number(to.slice(0, 4)), Number(to.slice(5, 7)) - 1, 1);
+  const first = new Date(Number(from.slice(0, 4)), Number(from.slice(5, 7)) - 1, 1);
+  const months: string[] = [];
+  const cursor = new Date(end);
+  for (let i = 0; i < 12 && cursor >= first; i++) {
+    months.unshift(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`);
+    cursor.setMonth(cursor.getMonth() - 1);
+  }
+  return months.map((month) => ({ month, value: byMonth.get(month) ?? 0 }));
+}
+
 /** Average nightly rate across approved units (undefined when none). */
 export function avgNightlyRate(units: Unit[]): number | undefined {
   const priced = units.filter((u) => u.status === "approved" && u.pricePerNight > 0);

@@ -9,10 +9,14 @@ export const PARTNER_SHARE_RATE = 1 - COMMISSION_RATE;
 /** Official review SLA — used verbatim in success screen + notifications. */
 export const REVIEW_SLA = { ar: "24–48 ساعة", en: "24–48 hours" } as const;
 
-/** OTP policy. */
+/**
+ * OTP policy — matches the live backend (NEXTJS-DASHBOARD-DEVIATIONS §3):
+ * 6 digits, 5-minute TTL (platform-wide, deviates from the contract's 60s),
+ * 3 verify attempts, 60s resend cooldown.
+ */
 export const OTP = {
   length: 6,
-  validitySeconds: 60,
+  validitySeconds: 300,
   maxAttempts: 3,
   resendCountdown: 60,
   /** Mock only — never used in production mode. */

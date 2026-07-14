@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { api } from "@/lib/api/client";
 import { Modal, Button } from "@/components/ui";
 import { Avatar } from "@/components/shared/avatar";
@@ -54,9 +54,16 @@ export function BookingDetail({
   const reasonLabel = reason === "other" ? otherText : REASONS.find((r) => r.value === reason)?.label ?? "";
   const f = booking.financials;
 
+  // One key per opened cancel flow — a double-click/retry with the same key
+  // never double-refunds (backend host-cancel is idempotent, deviations §8).
+  const idempotencyKey = useMemo(
+    () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${booking.id}-${Date.now()}`),
+    [booking.id],
+  );
+
   async function confirmCancel() {
     setView("processing");
-    const updated = await api.hostCancel(booking.id, reasonLabel);
+    const updated = await api.hostCancel(booking.id, reasonLabel, idempotencyKey);
     onCancelled(updated);
     setView("cancelled");
   }

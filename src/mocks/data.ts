@@ -209,18 +209,18 @@ export const mockBookings: Booking[] = [
 
 export const mockCalendar: Record<string, CalendarDay[]> = {
   u_1: buildMonth("2026-07", {
-    3: { status: "booked", bookingCode: "BK-2401" },
-    4: { status: "booked", bookingCode: "BK-2401" },
-    5: { status: "booked", bookingCode: "BK-2401" },
-    8: { status: "blocked" },
-    9: { status: "blocked" },
+    3: { status: "booked", bookingCode: "BK-2401", bookingId: "b_1" },
+    4: { status: "booked", bookingCode: "BK-2401", bookingId: "b_1" },
+    5: { status: "booked", bookingCode: "BK-2401", bookingId: "b_1" },
+    8: { status: "blocked", reason: "صيانة" },
+    9: { status: "blocked", reason: "صيانة" },
     17: { status: "external", source: "Booking.com" },
     18: { status: "external", source: "Booking.com" },
-    22: { status: "booked", bookingCode: "BK-2401" },
-    23: { status: "booked", bookingCode: "BK-2401" },
-    24: { status: "booked", bookingCode: "BK-2401" },
-    27: { status: "blocked" },
-    28: { status: "blocked" },
+    22: { status: "booked", bookingCode: "BK-2401", bookingId: "b_1" },
+    23: { status: "booked", bookingCode: "BK-2401", bookingId: "b_1" },
+    24: { status: "booked", bookingCode: "BK-2401", bookingId: "b_1" },
+    27: { status: "blocked", reason: null },
+    28: { status: "blocked", reason: null },
   }),
 };
 
@@ -317,14 +317,8 @@ export function buildReportsSummary(from: string, to: string): ReportsSummary {
   const grossRevenue = inRange.reduce((s, b) => s + b.financials.total, 0);
   const commission = inRange.reduce((s, b) => s + b.financials.commission, 0);
 
-  // Month keys covering the range, newest last (capped at 12 for chart sanity)
-  const months: string[] = [];
-  const cursor = new Date(end.getFullYear(), end.getMonth(), 1);
-  const first = new Date(start.getFullYear(), start.getMonth(), 1);
-  for (let i = 0; i < 12 && cursor >= first; i++) {
-    months.unshift(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`);
-    cursor.setMonth(cursor.getMonth() - 1);
-  }
+  // Live backend returns ONLY months with data, ascending (NEXTJS-DASHBOARD-REPORTS §2)
+  const months = [...new Set(inRange.map((b) => monthKey(b.checkIn)))].sort();
 
   const perUnit = new Map<string, ReportsSummary["perUnit"][number]>();
   for (const b of inRange) {
@@ -349,4 +343,53 @@ export function buildReportsSummary(from: string, to: string): ReportsSummary {
     })),
     perUnit: [...perUnit.values()].sort((a, b) => b.revenue - a.revenue),
   };
+}
+
+/** Mock of §7.2 export — CSV matching what the backend's csv/xlsx formats return. */
+export function buildReportCsv(from: string, to: string): string {
+  const s = buildReportsSummary(from, to);
+  const lines = [
+    `التقرير,${from},${to}`,
+    `إجمالي الإيرادات,${s.grossRevenue}`,
+    `عدد الحجوزات,${s.bookingsCount}`,
+    `عمولة ممسى (2%),${s.commission}`,
+    `صافي الربح,${s.netProfit}`,
+    "",
+    "الوحدة,الحجوزات,الإيراد",
+    ...s.perUnit.map((u) => `${u.unitName},${u.bookings},${u.revenue}`),
+  ];
+  return lines.join("\r\n");
+}
+
+/* ---------------- iCal feed mock helpers (§5.4–5.5 live behavior) ---------------- */
+
+/** Add = validate + immediate first sync server-side; the returned feed is already synced. */
+export function addMockFeed(source: string, url: string): ICalFeed {
+  const feed: ICalFeed = {
+    id: `f_${Date.now()}`,
+    source,
+    url,
+    status: "synced",
+    lastSync: new Date().toISOString(),
+  };
+  mockFeeds.push(feed);
+  return feed;
+}
+
+export function deleteMockFeed(feedId: string): void {
+  const i = mockFeeds.findIndex((f) => f.id === feedId);
+  if (i >= 0) mockFeeds.splice(i, 1);
+}
+
+export function syncMockFeed(feedId: string): ICalFeed {
+  const feed = mockFeeds.find((f) => f.id === feedId);
+  if (!feed) throw new Error("FEED_NOT_FOUND");
+  feed.status = "synced";
+  feed.lastSync = new Date().toISOString();
+  return { ...feed };
+}
+
+/** Server-minted public .ics URL with an unguessable per-unit token. */
+export function mockIcalExportUrl(unitId: string): string {
+  return `https://api.mamsaa.com/api/v1/calendar/9f3a${unitId.replace(/\W/g, "")}7be2d14cc1.ics`;
 }

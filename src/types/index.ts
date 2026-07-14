@@ -114,15 +114,17 @@ export interface CalendarDay {
   date: string; // ISO (yyyy-mm-dd)
   status: DayStatus;
   bookingCode?: string; // when booked
+  bookingId?: string; // when booked — deep link to the booking
+  reason?: string | null; // when blocked (manual close reason, nullable)
   source?: string; // when external, e.g. "Booking.com"
 }
 
 export interface ICalFeed {
   id: string;
-  source: string; // "Airbnb — Marina Loft"
+  source: string; // "Airbnb"
   url: string;
   status: "synced" | "error";
-  lastSync: string; // ISO
+  lastSync: string | null; // ISO — null until first sync
 }
 
 /** §8 — exactly these five types. No review/payment/system notifications exist. */

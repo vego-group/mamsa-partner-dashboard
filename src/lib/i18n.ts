@@ -37,6 +37,8 @@ export const dict: Record<Locale, Dict> = {
       errWrongNumber: "رقم الجوال غير صحيح.",
       errWrongCode: "الرمز غير صحيح. حاول مرة أخرى.",
       errExpired: "انتهت صلاحية الرمز. أعد الإرسال.",
+      errLocked: "تجاوزت عدد المحاولات — اطلب رمزًا جديدًا.",
+      errRateLimited: "محاولات كثيرة — انتظر قليلًا ثم أعد المحاولة.",
       pending: "طلبك قيد المراجعة — سنُشعرك عند الاعتماد.",
       suspended: "الحساب موقوف. تواصل مع الدعم.",
       heroBadge: "فيلا فاخرة · جدة، السعودية",
@@ -94,6 +96,7 @@ export const dict: Record<Locale, Dict> = {
       title: "التقارير والتحليلات",
       subtitle: "رؤى مالية وأداء",
       exportPdf: "تصدير PDF",
+      exportCsv: "تصدير CSV",
       commission: "عمولة مَمسَى (2%)",
       netProfit: "صافي الربح",
       revenueTrend: "اتجاه الإيرادات",
@@ -115,13 +118,21 @@ export const dict: Record<Locale, Dict> = {
       makeAvailable: "إتاحة",
       icalIntegrations: "تكاملات iCal",
       lastSync: (v: string) => `آخر مزامنة: ${v}`,
+      lastSyncNever: "لم تتم المزامنة بعد",
       synced: "متزامن",
       error: "خطأ",
+      syncNow: "مزامنة الآن",
+      addFeed: "إضافة تقويم",
+      feedSourcePh: "المصدر (مثال: Airbnb)",
+      feedUrlPh: "رابط iCal (.ics)",
+      add: "إضافة",
+      exportTitle: "تصدير تقويم مَمسَى",
+      exportSub: "أضف هذا الرابط في المنصات الأخرى ليقفل تواريخ مَمسَى عندهم تلقائيًا.",
       quickBlock: "حجب سريع",
       quickBlockSub: "احجب التواريخ عبر كل الوحدات أو وحدات محددة",
+      blockReasonPh: "السبب (اختياري)",
       blockSelectedDates: "حجب التواريخ المحددة",
       weekdays: ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"],
-      syncTimes: ["قبل دقيقتين", "قبل 5 دقائق", "قبل ساعتين"],
     },
     account: {
       title: "إعدادات الحساب",
@@ -443,6 +454,8 @@ export const dict: Record<Locale, Dict> = {
       errWrongNumber: "That mobile number isn't valid.",
       errWrongCode: "That code isn't right. Try again.",
       errExpired: "The code expired. Resend it.",
+      errLocked: "Too many attempts — request a new code.",
+      errRateLimited: "Too many requests — wait a moment and try again.",
       pending: "Your account is under review — we'll notify you once approved.",
       suspended: "Account suspended. Contact support.",
       heroBadge: "Luxury Villa · Jeddah, Saudi Arabia",
@@ -499,6 +512,7 @@ export const dict: Record<Locale, Dict> = {
       title: "Reports & Analytics",
       subtitle: "Financial and performance insights",
       exportPdf: "Export PDF",
+      exportCsv: "Export CSV",
       commission: "Mamsa Commission (2%)",
       netProfit: "Net Profit",
       revenueTrend: "Revenue Trend",
@@ -520,13 +534,21 @@ export const dict: Record<Locale, Dict> = {
       makeAvailable: "Make Available",
       icalIntegrations: "iCal Integrations",
       lastSync: (v: string) => `Last sync: ${v}`,
+      lastSyncNever: "Not synced yet",
       synced: "Synced",
       error: "Error",
+      syncNow: "Sync now",
+      addFeed: "Add feed",
+      feedSourcePh: "Source (e.g. Airbnb)",
+      feedUrlPh: "iCal URL (.ics)",
+      add: "Add",
+      exportTitle: "Export Mamsa Calendar",
+      exportSub: "Paste this link into other platforms so Mamsa dates auto-block there.",
       quickBlock: "Quick Block",
       quickBlockSub: "Block dates across all or specific properties",
+      blockReasonPh: "Reason (optional)",
       blockSelectedDates: "Block Selected Dates",
       weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-      syncTimes: ["2m ago", "5m ago", "2h ago"],
     },
     account: {
       title: "Account Settings",
@@ -841,6 +863,8 @@ export type Dict = {
     errWrongNumber: string;
     errWrongCode: string;
     errExpired: string;
+    errLocked: string;
+    errRateLimited: string;
     pending: string;
     suspended: string;
     heroBadge: string;
@@ -897,6 +921,7 @@ export type Dict = {
     title: string;
     subtitle: string;
     exportPdf: string;
+    exportCsv: string;
     commission: string;
     netProfit: string;
     revenueTrend: string;
@@ -918,13 +943,21 @@ export type Dict = {
     makeAvailable: string;
     icalIntegrations: string;
     lastSync: (v: string) => string;
+    lastSyncNever: string;
     synced: string;
     error: string;
+    syncNow: string;
+    addFeed: string;
+    feedSourcePh: string;
+    feedUrlPh: string;
+    add: string;
+    exportTitle: string;
+    exportSub: string;
     quickBlock: string;
     quickBlockSub: string;
+    blockReasonPh: string;
     blockSelectedDates: string;
     weekdays: string[];
-    syncTimes: string[];
   };
   account: {
     title: string;
