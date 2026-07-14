@@ -14,12 +14,10 @@ import type { Booking, BookingStatus } from "@/types";
 import { BookingDetail } from "@/features/bookings/components/booking-detail";
 import {
   Filter,
-  Download,
   LayoutGrid,
   List,
   ArrowRight,
   CheckCircle2,
-  Clock,
   XCircle,
 } from "lucide-react";
 
@@ -46,11 +44,10 @@ export default function BookingsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* TODO backend: there is no /bookings/export endpoint in the contract —
+              the old Export button was removed. Filters map to GET /bookings query params. */}
           <button className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-sm font-medium text-ink hover:bg-cream">
             <Filter className="h-4 w-4" /> {t.bookings.filters}
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-sm font-medium text-ink hover:bg-cream">
-            <Download className="h-4 w-4" /> {t.bookings.export}
           </button>
           <div className="flex rounded-full border border-line bg-white p-1">
             <button

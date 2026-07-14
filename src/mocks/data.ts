@@ -6,6 +6,7 @@ import type {
   ICalFeed,
   AppNotification,
   OverviewMetrics,
+  ReportsSummary,
 } from "@/types";
 import { computeFinancials } from "@/lib/format";
 
@@ -17,7 +18,6 @@ import { computeFinancials } from "@/lib/format";
 export const mockPartner: Partner = {
   id: "p_1",
   name: "منصور القاسمي",
-  companyName: "مجموعة ممسى العقارية",
   email: "mansour@mamsaa.com",
   phone: "+966501234567",
   accountType: "company",
@@ -55,12 +55,12 @@ export const mockUnits: Unit[] = [
     lng: 46.6753,
     address: "حي العليا، الرياض",
     tourismLicenseNumber: "TL-2025-73101",
+    tourismLicenseFileId: "file_lic_u1",
     photos: [photo("ph1", true), photo("ph2"), photo("ph3")],
+    publicUrl: "https://mamsaa.com/units/MRN2401",
     updatedAt: "2026-07-10T09:00:00Z",
     rating: 4.9,
-    reviews: 127,
-    occupancy: 91,
-    availability: "available",
+    reviewsCount: 127,
   },
   {
     id: "u_2",
@@ -82,12 +82,12 @@ export const mockUnits: Unit[] = [
     lng: 39.1728,
     address: "حي الشاطئ، جدة",
     tourismLicenseNumber: "TL-2025-88214",
+    tourismLicenseFileId: "file_lic_u2",
     photos: [photo("ph4", true), photo("ph5")],
+    publicUrl: "https://mamsaa.com/units/JDH2402",
     updatedAt: "2026-07-08T12:00:00Z",
     rating: 4.7,
-    reviews: 89,
-    occupancy: 84,
-    availability: "booked",
+    reviewsCount: 89,
   },
   {
     id: "u_3",
@@ -109,12 +109,10 @@ export const mockUnits: Unit[] = [
     lng: 50.0888,
     address: "حي الروضة، الدمام",
     tourismLicenseNumber: "TL-2025-90551",
+    tourismLicenseFileId: "file_lic_u3",
     photos: [photo("ph6", true)],
     updatedAt: "2026-07-11T08:00:00Z",
-    rating: 4.8,
-    reviews: 64,
-    occupancy: 96,
-    availability: "available",
+    // pending — no publicUrl, no reviews yet
   },
   {
     id: "u_4",
@@ -140,10 +138,9 @@ export const mockUnits: Unit[] = [
     rejectionReason:
       "التصريح السياحي منتهي الصلاحية. يُرجى رفع تصريح ساري المفعول وإعادة الإرسال.",
     updatedAt: "2026-07-09T14:00:00Z",
+    // was live before the license expired — reviews carry over
     rating: 4.6,
-    reviews: 203,
-    occupancy: 78,
-    availability: "blocked",
+    reviewsCount: 203,
   },
   {
     id: "u_5",
@@ -175,7 +172,6 @@ const bk = (
   code: string,
   unit: Unit,
   guestName: string,
-  guestEmail: string,
   guestPhone: string,
   checkIn: string,
   checkOut: string,
@@ -191,7 +187,6 @@ const bk = (
     unitName: unit.name,
     unitThumb: unit.photos[0]?.url ?? "",
     guestName,
-    guestEmail,
     guestPhone,
     checkIn,
     checkOut,
@@ -199,15 +194,17 @@ const bk = (
     guests,
     status,
     financials: computeFinancials(total),
+    // Frozen at booking time (FR-036)
+    policySnapshot: { name: "flexible", rules: "إلغاء مجاني حتى 48 ساعة قبل الوصول" },
     notes: id === "b_1" ? "طلب تسجيل دخول مبكر" : undefined,
   };
 };
 
 export const mockBookings: Booking[] = [
-  bk("b_1", "BK-2401", mockUnits[0], "أحمد الراشدي", "ahmed.rashidi@email.com", "+966502345678", "2026-07-20T15:00:00Z", "2026-07-25T12:00:00Z", 5, 2, "confirmed"),
-  bk("b_2", "BK-2402", mockUnits[1], "سارة المطيري", "sara.mutairi@email.com", "+966553456789", "2026-07-22T16:00:00Z", "2026-07-29T12:00:00Z", 7, 4, "confirmed"),
-  bk("b_3", "BK-2403", mockUnits[0], "خالد العتيبي", "khalid.otaibi@email.com", "+966561234567", "2026-06-10T15:00:00Z", "2026-06-14T12:00:00Z", 4, 2, "completed"),
-  bk("b_4", "BK-2404", mockUnits[1], "منى الدوسري", "mona.dosari@email.com", "+966544567890", "2026-07-01T16:00:00Z", "2026-07-05T12:00:00Z", 4, 3, "cancelled"),
+  bk("b_1", "BK-2401", mockUnits[0], "أحمد الراشدي", "+966502345678", "2026-07-20T15:00:00Z", "2026-07-25T12:00:00Z", 5, 2, "confirmed"),
+  bk("b_2", "BK-2402", mockUnits[1], "سارة المطيري", "+966553456789", "2026-07-22T16:00:00Z", "2026-07-29T12:00:00Z", 7, 4, "confirmed"),
+  bk("b_3", "BK-2403", mockUnits[0], "خالد العتيبي", "+966561234567", "2026-06-10T15:00:00Z", "2026-06-14T12:00:00Z", 4, 2, "completed"),
+  bk("b_4", "BK-2404", mockUnits[1], "منى الدوسري", "+966544567890", "2026-07-01T16:00:00Z", "2026-07-05T12:00:00Z", 4, 3, "cancelled"),
 ];
 
 export const mockCalendar: Record<string, CalendarDay[]> = {
@@ -247,203 +244,109 @@ export const mockFeeds: ICalFeed[] = [
   { id: "f_3", source: "Vrbo — فيلا الروضة", url: "https://vrbo.com/ical/3", status: "error", lastSync: "2026-07-13T07:30:00Z" },
 ];
 
-export const mockNotifications: AppNotification[] = [
-  {
-    id: "n_1",
-    category: "booking",
-    group: "today",
-    read: false,
-    href: "/bookings",
-    guestName: "أحمد الراشدي",
-    title: { ar: "حجز جديد", en: "New Booking Received" },
-    body: {
-      ar: "حجز أحمد الراشدي وحدة استوديو مرسى العليا لمدة 5 ليالٍ.",
-      en: "Ahmed Al-Rashidi booked استوديو مرسى العليا for 5 nights.",
-    },
-    meta: { ar: "1,600 ر.س · BK-2401", en: "SAR 1,600 · BK-2401" },
-    metaTone: "green",
-    timeLabel: { ar: "اليوم، 09:42 ص", en: "Today, 09:42 AM" },
-  },
-  {
-    id: "n_2",
-    category: "review",
-    group: "today",
-    read: false,
-    href: "/reports",
-    guestName: "سارة المطيري",
-    title: { ar: "تقييم جديد بخمس نجوم", en: "New 5-Star Review" },
-    body: {
-      ar: "تركت سارة المطيري تقييمًا رائعًا لوحدة شقة إطلالة البحر — جدة.",
-      en: "Sarah Al-Mutairi left a glowing review on شقة إطلالة البحر — جدة.",
-    },
-    rating: 5,
-    quote: { ar: "إقامة مذهلة حقًا!", en: "Absolutely stunning stay!" },
-    timeLabel: { ar: "اليوم، 08:55 ص", en: "Today, 08:55 AM" },
-  },
-  {
-    id: "n_3",
-    category: "payment",
-    group: "today",
-    read: false,
-    href: "/bookings",
-    title: { ar: "تم تأكيد الدفع", en: "Payment Confirmed" },
-    body: {
-      ar: "تم استلام كامل مبلغ 3,780 ر.س للحجز BK-2402.",
-      en: "Full payment of SAR 3,780 received for booking BK-2402.",
-    },
-    meta: { ar: "شقة إطلالة البحر · 22–29 يوليو", en: "Beachfront · Jul 22–29" },
-    metaTone: "green",
-    timeLabel: { ar: "اليوم، 06:30 ص", en: "Today, 06:30 AM" },
-  },
-  {
-    id: "n_4",
-    category: "alert",
-    group: "today",
-    read: true,
-    href: "/units?status=pending",
-    title: { ar: "بانتظار الموافقة", en: "Pending Approval" },
-    body: {
-      ar: "لا تزال فيلا الروضة — الدمام بانتظار موافقة المنصة. مطلوب إجراء.",
-      en: "فيلا الروضة — الدمام is still awaiting platform approval. Action required.",
-    },
-    meta: { ar: "أُرسلت قبل يومين", en: "Submitted 2 days ago" },
-    metaTone: "red",
-    timeLabel: { ar: "اليوم، 04:10 ص", en: "Today, 04:10 AM" },
-  },
-  {
-    id: "n_5",
-    category: "booking",
-    group: "yesterday",
-    read: true,
-    href: "/bookings",
-    guestName: "خالد العتيبي",
-    title: { ar: "الحجز يتطلب تأكيدًا", en: "Booking Requires Confirmation" },
-    body: {
-      ar: "حجز خالد العتيبي BK-2403 لوحدة استوديو مرسى العليا بانتظار موافقتك.",
-      en: "Khalid Al-Otaibi's booking BK-2403 for استوديو مرسى العليا is pending your approval.",
-    },
-    meta: { ar: "1,280 ر.س · 4 ليالٍ", en: "SAR 1,280 · 4 nights" },
-    metaTone: "muted",
-    timeLabel: { ar: "أمس، 07:20 م", en: "Yesterday, 07:20 PM" },
-  },
-  {
-    id: "n_6",
-    category: "system",
-    group: "yesterday",
-    read: true,
-    href: "/calendar",
-    title: { ar: "اكتملت مزامنة التقويم", en: "iCal Sync Complete" },
-    body: {
-      ar: "تمت مزامنة التقويم بنجاح لـ 3 وحدات. جميع الحجوزات الخارجية محدّثة الآن.",
-      en: "Calendar sync completed successfully for 3 properties. All external bookings are now reflected.",
-    },
-    meta: { ar: "مرسى العليا · إطلالة البحر · الروضة", en: "Marsa Al-Olaya · Beachfront · Al-Rawdah" },
-    metaTone: "muted",
-    timeLabel: { ar: "أمس، 03:00 م", en: "Yesterday, 03:00 PM" },
-  },
-  {
-    id: "n_7",
-    category: "payment",
-    group: "earlier",
-    read: true,
-    href: "/bookings",
-    guestName: "خالد الشمري",
-    title: { ar: "تم استلام دفعة جزئية", en: "Partial Payment Received" },
-    body: {
-      ar: "دفع خالد الشمري عربونًا بقيمة 4,200 ر.س (50%) لوحدة فيلا الروضة — الدمام.",
-      en: "Khalid Al-Shammari paid a deposit of SAR 4,200 (50%) for فيلا الروضة — الدمام.",
-    },
-    meta: { ar: "8,400 ر.س إجمالي · BK-2405", en: "SAR 8,400 total · BK-2405" },
-    metaTone: "green",
-    timeLabel: { ar: "الإثنين، 10:15 ص", en: "Mon, 10:15 AM" },
-  },
-  {
-    id: "n_8",
-    category: "alert",
-    group: "earlier",
-    read: true,
-    href: "/bookings",
-    guestName: "منى الدوسري",
-    title: { ar: "تم إلغاء الحجز", en: "Booking Cancelled" },
-    body: {
-      ar: "ألغت منى الدوسري حجزها لوحدة شقة إطلالة البحر — جدة. تم بدء استرداد 2,160 ر.س.",
-      en: "Mona Al-Dosari cancelled her reservation for شقة إطلالة البحر — جدة. Refund of SAR 2,160 initiated.",
-    },
-    meta: { ar: "BK-2404 · 1–5 يوليو", en: "BK-2404 · Jul 1–5" },
-    metaTone: "red",
-    timeLabel: { ar: "الإثنين، 08:00 ص", en: "Mon, 08:00 AM" },
-  },
-];
+/** Seeded relative to "now" so the اليوم/أمس/سابقًا grouping always demos nicely. */
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
 
 /**
- * Portfolio-level demo aggregates for the Overview dashboard.
- * SAR currency · Saudi properties (the designer's mock used AED — corrected here).
+ * §8 contract — exactly the five agreed types, ready Arabic strings.
+ * No review / partial-payment / "awaiting your approval" notifications exist
+ * (locked rules: instant full payment via Moyasar, no partner approval step).
  */
+export const mockNotifications: AppNotification[] = [
+  { id: "n_1", type: "new_booking", title: "حجز جديد", body: "حجز أحمد الراشدي وحدة استوديو مرسى العليا لمدة 5 ليالٍ (BK-2401).", read: false, createdAt: hoursAgo(2), href: "/bookings" },
+  { id: "n_2", type: "unit_rejected", title: "تم رفض وحدتك", body: "شقة النرجس المودرن — السبب: التصريح السياحي منتهي الصلاحية.", read: false, createdAt: hoursAgo(5), href: "/units/u_4" },
+  { id: "n_3", type: "sync_failed", title: "فشلت مزامنة تقويم خارجي", body: "تعذّرت مزامنة Vrbo لوحدة فيلا الروضة — الدمام.", read: true, createdAt: hoursAgo(27), href: "/calendar" },
+  { id: "n_4", type: "host_cancellation", title: "تم تسجيل إلغاء مضيف", body: "أُلغي الحجز BK-2404 واستُرد كامل المبلغ (2,160 ر.س) للضيف.", read: true, createdAt: hoursAgo(31), href: "/bookings" },
+  { id: "n_5", type: "unit_approved", title: "تمت الموافقة على وحدتك", body: "شقة إطلالة البحر — جدة أصبحت معتمدة وظاهرة في الموقع.", read: true, createdAt: hoursAgo(24 * 6), href: "/units/u_2" },
+];
+
+/** Last-12-months keys ending this month: ["2025-08", …, "2026-07"]. */
+function last12Months(): string[] {
+  const now = new Date();
+  return Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+}
+
+const monthKey = (iso: string) => iso.slice(0, 7);
+
+/** §3.1 contract shape — aggregates computed honestly from the seeded data. */
 export function buildOverview(): OverviewMetrics {
+  const months = last12Months();
+  const active = mockBookings.filter((b) => b.status !== "cancelled");
+
+  const bookingsByMonth = months.map((month) => ({
+    month,
+    count: active.filter((b) => monthKey(b.checkIn) === month).length,
+  }));
+  const revenueByMonth = months.map((month) => ({
+    month,
+    amount: active
+      .filter((b) => monthKey(b.checkIn) === month)
+      .reduce((s, b) => s + b.financials.partnerShare, 0),
+  }));
+
+  // v1.2 — % booked nights / available (non-blocked) nights, current mock month
+  const days = mockCalendar.u_1;
+  const booked = days.filter((d) => d.status === "booked").length;
+  const blocked = days.filter((d) => d.status === "blocked").length;
+  const occupancyRate = Math.round((booked / (days.length - blocked)) * 100);
+
   return {
-    partnerName: mockPartner.name,
-
-    activeGuests: 14,
-    pendingActions: 3,
-    thisMonthRevenue: 67_000,
-
-    totalProperties: 12,
-    propertiesApproved: 8,
-    propertiesPending: 4,
-    propertiesDelta: 2,
-
-    totalBookings: 248,
-    bookingsDeltaPct: 18,
-
-    totalRevenue: 728_000,
-    revenueLastYear: 610_000,
-    revenueDeltaPct: 19.3,
-
-    occupancyRate: 87,
-    occupancyDeltaPct: 5.2,
-
-    avgNightlyRate: 476,
-    avgNightlyDeltaPct: -2.1,
-
-    guestRating: 4.8,
-    guestRatingDelta: 0.2,
-
-    netProfitDeltaPct: 22,
-
-    spark: {
-      properties: [8, 8, 9, 9, 10, 11, 11, 12],
-      bookings: [180, 195, 205, 210, 224, 231, 240, 248],
-      revenue: [520, 560, 600, 640, 660, 690, 710, 728],
-      occupancy: [78, 80, 79, 82, 84, 85, 86, 87],
-      nightly: [500, 495, 490, 486, 482, 480, 478, 476],
-      rating: [4.5, 4.5, 4.6, 4.6, 4.7, 4.7, 4.8, 4.8],
-    },
-
-    revenueSeries: [42_000, 40_000, 45_000, 52_000, 58_000, 61_000, 68_000, 79_000, 72_000, 60_000, 55_000, 67_000],
-    bookingsSeries: [27, 22, 33, 35, 36, 47, 45, 51, 46, 42, 34, 44],
-    occupancySeries: [68, 64, 72, 78, 82, 85, 88, 90, 86, 80, 76, 84],
-    occupancy: { available: 32, booked: 51, blocked: 17 },
-
-    topProperties: [
-      { name: "شقة إطلالة البحر — جدة", revenue: 31_000, rating: 4.8 },
-      { name: "استوديو مرسى العليا", revenue: 24_500, rating: 4.9 },
-      { name: "فيلا الروضة — الدمام", revenue: 20_100, rating: 4.5 },
-      { name: "شقة النرجس المودرن", revenue: 18_200, rating: 4.7 },
-      { name: "شقة الملقا", revenue: 14_800, rating: 4.6 },
-    ],
-
-    propertyPerformance: [mockUnits[0], mockUnits[1], mockUnits[2], mockUnits[3]].map((u, i) => ({
-      name: u.name,
-      district: u.district,
-      city: u.city,
-      thumb: u.photos[0]?.url ?? "",
-      revenue: [24_500, 18_200, 31_000, 14_800][i],
-      bookings: [26, 29, 12, 27][i],
-      occupancy: u.occupancy ?? 0,
-      rating: u.rating ?? 0,
-      growth: [12, 19, 11, 18][i],
-    })),
-
+    unitsCount: mockUnits.filter((u) => u.status !== "draft").length,
+    bookingsCount: active.length,
+    totalRevenue: active.reduce((s, b) => s + b.financials.partnerShare, 0),
+    bookingsByMonth,
+    revenueByMonth,
+    thisMonthRevenue: revenueByMonth[revenueByMonth.length - 1]?.amount ?? 0,
+    occupancyRate,
     hasRejectedUnit: mockUnits.some((u) => u.status === "rejected"),
+  };
+}
+
+/** §7.1 contract shape — computed from the seeded bookings within [from, to]. */
+export function buildReportsSummary(from: string, to: string): ReportsSummary {
+  const start = new Date(from);
+  const end = new Date(to);
+  const inRange = mockBookings.filter((b) => {
+    const d = new Date(b.checkIn);
+    return b.status !== "cancelled" && d >= start && d <= end;
+  });
+
+  const grossRevenue = inRange.reduce((s, b) => s + b.financials.total, 0);
+  const commission = inRange.reduce((s, b) => s + b.financials.commission, 0);
+
+  // Month keys covering the range, newest last (capped at 12 for chart sanity)
+  const months: string[] = [];
+  const cursor = new Date(end.getFullYear(), end.getMonth(), 1);
+  const first = new Date(start.getFullYear(), start.getMonth(), 1);
+  for (let i = 0; i < 12 && cursor >= first; i++) {
+    months.unshift(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`);
+    cursor.setMonth(cursor.getMonth() - 1);
+  }
+
+  const perUnit = new Map<string, ReportsSummary["perUnit"][number]>();
+  for (const b of inRange) {
+    const row = perUnit.get(b.unitId) ?? { unitId: b.unitId, unitName: b.unitName, bookings: 0, revenue: 0 };
+    row.bookings += 1;
+    row.revenue += b.financials.total;
+    perUnit.set(b.unitId, row);
+  }
+
+  return {
+    grossRevenue,
+    bookingsCount: inRange.length,
+    commission,
+    netProfit: grossRevenue - commission,
+    revenueByMonth: months.map((month) => ({
+      month,
+      amount: inRange.filter((b) => monthKey(b.checkIn) === month).reduce((s, b) => s + b.financials.total, 0),
+    })),
+    bookingsByMonth: months.map((month) => ({
+      month,
+      count: inRange.filter((b) => monthKey(b.checkIn) === month).length,
+    })),
+    perUnit: [...perUnit.values()].sort((a, b) => b.revenue - a.revenue),
   };
 }

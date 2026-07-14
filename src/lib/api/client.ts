@@ -15,6 +15,7 @@ import type {
   ICalFeed,
   AppNotification,
   OverviewMetrics,
+  ReportsSummary,
 } from "@/types";
 import {
   mockPartner,
@@ -24,6 +25,7 @@ import {
   mockFeeds,
   mockNotifications,
   buildOverview,
+  buildReportsSummary,
 } from "@/mocks/data";
 import { OTP } from "@/lib/constants";
 
@@ -116,6 +118,16 @@ export const api = {
       return buildOverview();
     }
     return http("/overview");
+  },
+
+  // ---- Reports ----------------------------------------------------------
+  /** §7.1 — from/to as ISO dates (yyyy-mm-dd). Range shortcuts are frontend-side. */
+  async getReportsSummary(from: string, to: string): Promise<ReportsSummary> {
+    if (USE_MOCK) {
+      await delay();
+      return buildReportsSummary(from, to);
+    }
+    return http(`/reports/summary?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
   },
 
   // ---- Units ------------------------------------------------------------

@@ -56,7 +56,6 @@ export const dict: Record<Locale, Dict> = {
     overview: {
       welcomeBack: "مرحباً بعودتك",
       viewReports: "عرض التقارير",
-      activeGuests: "ضيوف حاليون",
       pendingActions: "إجراءات معلّقة",
       thisMonth: "هذا الشهر",
       totalProperties: "إجمالي الوحدات",
@@ -64,7 +63,6 @@ export const dict: Record<Locale, Dict> = {
       totalBookings: "إجمالي الحجوزات",
       thisYear: "هذه السنة",
       totalRevenue: "إجمالي الإيرادات",
-      vsLastYear: "مقارنة بالعام الماضي",
       occupancyRate: "معدل الإشغال",
       monthlyAverage: "متوسط شهري",
       avgNightlyRate: "متوسط سعر الليلة",
@@ -90,26 +88,21 @@ export const dict: Record<Locale, Dict> = {
     units: {
       totalApproved: (total: number, approved: number) => `${total} وحدة · ${approved} معتمدة`,
       perNight: "لكل ليلة",
-      occupancy: "إشغال",
       newProperty: "إضافة وحدة",
     },
     reports: {
       title: "التقارير والتحليلات",
       subtitle: "رؤى مالية وأداء",
       exportPdf: "تصدير PDF",
-      avgOccupancy: "متوسط الإشغال",
+      commission: "عمولة مَمسَى (2%)",
       netProfit: "صافي الربح",
       revenueTrend: "اتجاه الإيرادات",
       monthlyBreakdown: "التفصيل الشهري",
-      occupancyTitle: "معدل الإشغال",
-      monthlyAvgPct: "المتوسط الشهري ٪",
       propertyPerformance: "أداء الوحدات",
       colProperty: "الوحدة",
       colRevenue: "الإيراد",
       colBookings: "الحجوزات",
-      colOccupancy: "الإشغال",
       colRating: "التقييم",
-      colGrowth: "النمو",
     },
     calendar: {
       title: "تقويم الإتاحة",
@@ -135,23 +128,16 @@ export const dict: Record<Locale, Dict> = {
       subtitle: "أدر ملفك الشخصي وتفضيلاتك",
       partnerProfile: "بيانات الشريك",
       fullName: "الاسم الكامل",
-      companyName: "اسم الشركة",
       emailAddress: "البريد الإلكتروني",
-      phoneNumber: "رقم الجوال",
+      phoneNumber: "رقم الجوال (يُغيّر عبر OTP)",
       partnerType: "نوع الشريك",
+      verificationId: "رقم الهوية / السجل التجاري",
       location: "الموقع",
       saveChanges: "حفظ التغييرات",
-      uploadPhoto: "رفع صورة",
       partnerSince: (d: string) => `شريك منذ ${d}`,
       approved: "معتمد",
       companyType: "شركة إدارة عقارات",
       individualType: "مضيف فرد",
-      preferences: "التفضيلات",
-      emailNotifications: "إشعارات البريد الإلكتروني",
-      smsAlerts: "تنبيهات الرسائل النصية",
-      bookingReminders: "تذكيرات الحجوزات",
-      revenueReports: "تقارير الإيرادات",
-      savePreferences: "حفظ التفضيلات",
     },
     pm: {
       previewTitle: "معاينة الوحدة",
@@ -167,7 +153,6 @@ export const dict: Record<Locale, Dict> = {
       pricePerNight: "سعر الليلة (ر.س)",
       description: "الوصف",
       status: "الحالة",
-      availability: "الإتاحة",
       saveChanges: "حفظ التغييرات",
       calendarTitle: (name: string) => `التقويم — ${name}`,
       clickDatesHint: "اضغط على التواريخ للتحديد/إلغاء التحديد. يمكن حجب التواريخ المحددة أو إتاحتها.",
@@ -183,13 +168,11 @@ export const dict: Record<Locale, Dict> = {
       markAllRead: "تحديد الكل كمقروء",
       cardUnread: "غير مقروء",
       cardBookings: "الحجوزات",
-      cardPayments: "المدفوعات",
+      cardUnits: "الوحدات",
       cardAlerts: "التنبيهات",
-      catBooking: "حجز",
-      catReview: "تقييم",
-      catPayment: "دفع",
-      catAlert: "تنبيه",
-      catSystem: "النظام",
+      catBooking: "الحجوزات",
+      catUnits: "الوحدات",
+      catAlerts: "التنبيهات",
       groupToday: "اليوم",
       groupYesterday: "أمس",
       groupEarlier: "سابقًا",
@@ -198,7 +181,6 @@ export const dict: Record<Locale, Dict> = {
     bookings: {
       reservationsTotal: (total: number, shown: number) => `${total} حجز · ${shown} معروض`,
       filters: "تصفية",
-      export: "تصدير",
       property: "الوحدة",
       checkIn: "الوصول",
       checkOut: "المغادرة",
@@ -479,7 +461,6 @@ export const dict: Record<Locale, Dict> = {
     overview: {
       welcomeBack: "Welcome back",
       viewReports: "View Reports",
-      activeGuests: "Active Guests",
       pendingActions: "Pending Actions",
       thisMonth: "This Month",
       totalProperties: "Total Properties",
@@ -487,7 +468,6 @@ export const dict: Record<Locale, Dict> = {
       totalBookings: "Total Bookings",
       thisYear: "This year",
       totalRevenue: "Total Revenue",
-      vsLastYear: "vs last year",
       occupancyRate: "Occupancy Rate",
       monthlyAverage: "Monthly average",
       avgNightlyRate: "Avg. Nightly Rate",
@@ -513,26 +493,21 @@ export const dict: Record<Locale, Dict> = {
     units: {
       totalApproved: (total: number, approved: number) => `${total} total · ${approved} approved`,
       perNight: "per night",
-      occupancy: "occupancy",
       newProperty: "New Property",
     },
     reports: {
       title: "Reports & Analytics",
       subtitle: "Financial and performance insights",
       exportPdf: "Export PDF",
-      avgOccupancy: "Avg. Occupancy",
+      commission: "Mamsa Commission (2%)",
       netProfit: "Net Profit",
       revenueTrend: "Revenue Trend",
       monthlyBreakdown: "Monthly breakdown",
-      occupancyTitle: "Occupancy Rate",
-      monthlyAvgPct: "Monthly average %",
       propertyPerformance: "Property Performance",
       colProperty: "Property",
       colRevenue: "Revenue",
       colBookings: "Bookings",
-      colOccupancy: "Occupancy",
       colRating: "Avg. Rating",
-      colGrowth: "Growth",
     },
     calendar: {
       title: "Availability Calendar",
@@ -558,23 +533,16 @@ export const dict: Record<Locale, Dict> = {
       subtitle: "Manage your partner profile and preferences",
       partnerProfile: "Partner Profile",
       fullName: "Full Name",
-      companyName: "Company Name",
       emailAddress: "Email Address",
-      phoneNumber: "Phone Number",
+      phoneNumber: "Phone Number (changed via OTP)",
       partnerType: "Partner Type",
+      verificationId: "National ID / CR Number",
       location: "Location",
       saveChanges: "Save Changes",
-      uploadPhoto: "Upload Photo",
       partnerSince: (d: string) => `Partner since ${d}`,
       approved: "Approved",
       companyType: "Property Management Company",
       individualType: "Individual Host",
-      preferences: "Preferences",
-      emailNotifications: "Email Notifications",
-      smsAlerts: "SMS Alerts",
-      bookingReminders: "Booking Reminders",
-      revenueReports: "Revenue Reports",
-      savePreferences: "Save Preferences",
     },
     pm: {
       previewTitle: "Property Preview",
@@ -590,7 +558,6 @@ export const dict: Record<Locale, Dict> = {
       pricePerNight: "Price Per Night (SAR)",
       description: "Description",
       status: "Status",
-      availability: "Availability",
       saveChanges: "Save Changes",
       calendarTitle: (name: string) => `Calendar — ${name}`,
       clickDatesHint: "Click dates to select/deselect. Selected dates can be blocked or made available.",
@@ -606,13 +573,11 @@ export const dict: Record<Locale, Dict> = {
       markAllRead: "Mark all read",
       cardUnread: "Unread",
       cardBookings: "Bookings",
-      cardPayments: "Payments",
+      cardUnits: "Units",
       cardAlerts: "Alerts",
-      catBooking: "Booking",
-      catReview: "Review",
-      catPayment: "Payment",
-      catAlert: "Alert",
-      catSystem: "System",
+      catBooking: "Bookings",
+      catUnits: "Units",
+      catAlerts: "Alerts",
       groupToday: "Today",
       groupYesterday: "Yesterday",
       groupEarlier: "Earlier",
@@ -621,7 +586,6 @@ export const dict: Record<Locale, Dict> = {
     bookings: {
       reservationsTotal: (total: number, shown: number) => `${total} reservations total · ${shown} shown`,
       filters: "Filters",
-      export: "Export",
       property: "Property",
       checkIn: "Check-in",
       checkOut: "Check-out",
@@ -895,7 +859,6 @@ export type Dict = {
   overview: {
     welcomeBack: string;
     viewReports: string;
-    activeGuests: string;
     pendingActions: string;
     thisMonth: string;
     totalProperties: string;
@@ -903,7 +866,6 @@ export type Dict = {
     totalBookings: string;
     thisYear: string;
     totalRevenue: string;
-    vsLastYear: string;
     occupancyRate: string;
     monthlyAverage: string;
     avgNightlyRate: string;
@@ -929,26 +891,21 @@ export type Dict = {
   units: {
     totalApproved: (total: number, approved: number) => string;
     perNight: string;
-    occupancy: string;
     newProperty: string;
   };
   reports: {
     title: string;
     subtitle: string;
     exportPdf: string;
-    avgOccupancy: string;
+    commission: string;
     netProfit: string;
     revenueTrend: string;
     monthlyBreakdown: string;
-    occupancyTitle: string;
-    monthlyAvgPct: string;
     propertyPerformance: string;
     colProperty: string;
     colRevenue: string;
     colBookings: string;
-    colOccupancy: string;
     colRating: string;
-    colGrowth: string;
   };
   calendar: {
     title: string;
@@ -974,23 +931,16 @@ export type Dict = {
     subtitle: string;
     partnerProfile: string;
     fullName: string;
-    companyName: string;
     emailAddress: string;
     phoneNumber: string;
     partnerType: string;
+    verificationId: string;
     location: string;
     saveChanges: string;
-    uploadPhoto: string;
     partnerSince: (d: string) => string;
     approved: string;
     companyType: string;
     individualType: string;
-    preferences: string;
-    emailNotifications: string;
-    smsAlerts: string;
-    bookingReminders: string;
-    revenueReports: string;
-    savePreferences: string;
   };
   pm: {
     previewTitle: string;
@@ -1006,7 +956,6 @@ export type Dict = {
     pricePerNight: string;
     description: string;
     status: string;
-    availability: string;
     saveChanges: string;
     calendarTitle: (name: string) => string;
     clickDatesHint: string;
@@ -1022,13 +971,11 @@ export type Dict = {
     markAllRead: string;
     cardUnread: string;
     cardBookings: string;
-    cardPayments: string;
+    cardUnits: string;
     cardAlerts: string;
     catBooking: string;
-    catReview: string;
-    catPayment: string;
-    catAlert: string;
-    catSystem: string;
+    catUnits: string;
+    catAlerts: string;
     groupToday: string;
     groupYesterday: string;
     groupEarlier: string;
@@ -1037,7 +984,6 @@ export type Dict = {
   bookings: {
     reservationsTotal: (total: number, shown: number) => string;
     filters: string;
-    export: string;
     property: string;
     checkIn: string;
     checkOut: string;

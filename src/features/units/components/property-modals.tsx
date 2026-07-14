@@ -28,9 +28,6 @@ const badgeTone: Record<string, string> = {
   pending: "text-status-pending",
   approved: "text-status-approved",
   rejected: "text-status-rejected",
-  available: "text-status-approved",
-  booked: "text-brand",
-  blocked: "text-status-draft",
 };
 
 function OverlayBadge({ tone, children }: { tone: string; children: React.ReactNode }) {
@@ -59,7 +56,6 @@ function PreviewModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
         {unit.photos[0] && <Image src={unit.photos[0].url} alt="" fill className="object-cover" />}
         <div className="absolute bottom-3 start-3 flex flex-wrap gap-2">
           <OverlayBadge tone={unit.status}>{t.unitStatus[unit.status]}</OverlayBadge>
-          {unit.availability && <OverlayBadge tone={unit.availability}>{t.dayStatus[unit.availability]}</OverlayBadge>}
         </div>
       </div>
 
@@ -71,7 +67,9 @@ function PreviewModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
         <div className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-ink">
           <Star className="h-4 w-4 fill-status-pending text-status-pending" />
           {unit.rating.toFixed(1)}
-          {unit.reviews != null && <span className="font-normal text-ink-muted">{p.reviews(unit.reviews)}</span>}
+          {unit.reviewsCount != null && (
+            <span className="font-normal text-ink-muted">{p.reviews(unit.reviewsCount)}</span>
+          )}
         </div>
       )}
       {unit.description && <p className="mt-3 text-sm leading-relaxed text-ink-muted">{unit.description}</p>}
@@ -83,7 +81,7 @@ function PreviewModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
       </div>
       <div className="mt-3 grid grid-cols-2 gap-3">
         <SideTile label={p.nightlyRate} value={<MoneyText amount={unit.pricePerNight} className="text-lg font-bold text-ink" />} />
-        <SideTile label={p.occupancyRate} value={<span className="text-lg font-bold text-ink">{unit.occupancy ?? 0}%</span>} />
+        <SideTile label={t.wiz.propertyTypeLabel} value={<span className="text-lg font-bold text-ink">{t.propertyType[unit.type]}</span>} />
       </div>
     </Modal>
   );
@@ -144,30 +142,20 @@ function EditModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
           className="w-full rounded-xl border border-line bg-cream/40 px-4 py-2.5 text-sm text-ink outline-none focus:border-brand focus:bg-white"
         />
       </div>
-      <div className="mt-5 grid gap-5 sm:grid-cols-2">
-        <div>
-          <FieldLabel>{p.status}</FieldLabel>
-          <select defaultValue={unit.status} className={selectCls}>
-            {(["draft", "pending", "approved", "rejected"] as const).map((s) => (
-              <option key={s} value={s}>{t.unitStatus[s]}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <FieldLabel>{p.availability}</FieldLabel>
-          <select defaultValue={unit.availability ?? "available"} className={selectCls}>
-            {(["available", "booked", "blocked"] as const).map((s) => (
-              <option key={s} value={s}>{t.dayStatus[s]}</option>
-            ))}
-          </select>
-        </div>
+      <div className="mt-5">
+        <FieldLabel>{p.status}</FieldLabel>
+        {/* Lifecycle is server-enforced (§4) — partners never set status manually. */}
+        <input
+          value={t.unitStatus[unit.status]}
+          readOnly
+          className={cn(inputCls, "cursor-default text-ink-muted")}
+        />
       </div>
     </Modal>
   );
 }
 
 const inputCls = "w-full rounded-xl border border-line bg-cream/40 px-4 py-2.5 text-sm text-ink outline-none focus:border-brand focus:bg-white";
-const selectCls = cn(inputCls, "appearance-none");
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-faint">{children}</span>;
@@ -267,14 +255,18 @@ function CalendarModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   );
 }
 
-/* ---------------- Analytics ---------------- */
+/* ---------------- Analytics (derived client-side from the unit's calendar) ---------------- */
 function AnalyticsModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
-  const { t, locale } = useLocale();
+  const { t } = useLocale();
   const p = t.pm;
-  const occ = unit.occupancy ?? 80;
-  const nightsBooked = Math.round((occ / 100) * 26);
-  const revenue = unit.pricePerNight * nightsBooked;
-  const bookings = Math.max(1, Math.round(nightsBooked / 4));
+  const cal = useAsync(() => api.getCalendar(unit.id, "2026-07"), [unit.id]);
+
+  const days = cal.data ?? [];
+  const bookedDays = days.filter((d) => d.status === "booked");
+  const blockedCount = days.filter((d) => d.status === "blocked").length;
+  const occ = days.length ? Math.round((bookedDays.length / Math.max(1, days.length - blockedCount)) * 100) : 0;
+  const bookings = new Set(bookedDays.map((d) => d.bookingCode).filter(Boolean)).size;
+  const revenue = unit.pricePerNight * bookedDays.length; // gross estimate for the month
   const series = [0.7, 0.82, 0.76, 0.9, 0.85, 1].map((f, i) => ({ i, v: Math.round(revenue * f) }));
 
   return (
@@ -289,7 +281,7 @@ function AnalyticsModal({ unit, onClose }: { unit: Unit; onClose: () => void }) 
         <KpiTile label={t.overview.totalRevenue} value={<MoneyText amount={revenue} />} />
         <KpiTile label={t.overview.totalBookings} value={<span dir="ltr">{bookings}</span>} />
         <KpiTile label={p.occupancyRate} value={`${occ}%`} />
-        <KpiTile label={t.overview.guestRating} value={`${(unit.rating ?? 0).toFixed(1)} ★`} />
+        <KpiTile label={t.overview.guestRating} value={unit.rating != null ? `${unit.rating.toFixed(1)} ★` : "—"} />
       </div>
       <div className="mt-4 rounded-2xl bg-cream/50 p-4">
         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t.overview.revenueOverview}</div>
@@ -301,7 +293,6 @@ function AnalyticsModal({ unit, onClose }: { unit: Unit; onClose: () => void }) 
           </ResponsiveContainer>
         </div>
       </div>
-      <p className="sr-only">{locale}</p>
     </Modal>
   );
 }
@@ -319,7 +310,8 @@ function ShareModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   const { t, locale } = useLocale();
   const p = t.pm;
   const [copied, setCopied] = useState(false);
-  const url = `https://${BRAND.domain}/property/${unit.code}`;
+  // §4 — `publicUrl` comes from the API (present only when approved)
+  const url = unit.publicUrl ?? `https://${BRAND.domain}/units/${unit.code}`;
 
   function copy() {
     navigator.clipboard?.writeText(url).catch(() => {});

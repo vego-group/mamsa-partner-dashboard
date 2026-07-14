@@ -5,33 +5,70 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
-import { Avatar } from "@/components/shared/avatar";
 import { ErrorState, LoadingSkeleton } from "@/components/shared/states";
+import { formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import type { AppNotification, NotificationCategory, NotificationGroup } from "@/types";
+import type { AppNotification, NotificationType } from "@/types";
+import type { Locale, Dict } from "@/lib/i18n";
 import {
   CheckCheck,
   BookOpen,
-  Star,
-  DollarSign,
-  AlertCircle,
+  CheckCircle2,
+  XCircle,
   RefreshCw,
+  AlertCircle,
   Bell,
-  X,
 } from "lucide-react";
 
-const CATS: (NotificationCategory | "all")[] = ["all", "booking", "review", "payment", "alert", "system"];
-const GROUPS: NotificationGroup[] = ["today", "yesterday", "earlier"];
+/**
+ * §8 v1.2 — the API sends exactly five types with ready Arabic strings.
+ * Grouping (today/yesterday/earlier), time labels and the category rollup
+ * below are frontend presentation derived from `type` + `createdAt`.
+ */
+type UiCategory = "booking" | "units" | "alert";
+const CATS: (UiCategory | "all")[] = ["all", "booking", "units", "alert"];
 
-const catConfig: Record<NotificationCategory, { icon: typeof Bell; tone: string }> = {
-  booking: { icon: BookOpen, tone: "bg-brand-soft text-brand" },
-  review: { icon: Star, tone: "bg-status-pending/15 text-status-pending" },
-  payment: { icon: DollarSign, tone: "bg-status-approved/15 text-status-approved" },
-  alert: { icon: AlertCircle, tone: "bg-status-rejected/10 text-status-rejected" },
-  system: { icon: RefreshCw, tone: "bg-[#8A5FB0]/12 text-[#8A5FB0]" },
+const typeCategory: Record<NotificationType, UiCategory> = {
+  new_booking: "booking",
+  unit_approved: "units",
+  unit_rejected: "units",
+  sync_failed: "alert",
+  host_cancellation: "alert",
 };
 
-const metaClass = { green: "text-status-approved", red: "text-status-rejected", muted: "text-ink-faint" };
+const typeStyle: Record<NotificationType, { icon: typeof Bell; tone: string }> = {
+  new_booking: { icon: BookOpen, tone: "bg-brand-soft text-brand" },
+  unit_approved: { icon: CheckCircle2, tone: "bg-status-approved/15 text-status-approved" },
+  unit_rejected: { icon: XCircle, tone: "bg-status-rejected/10 text-status-rejected" },
+  sync_failed: { icon: RefreshCw, tone: "bg-status-pending/15 text-status-pending" },
+  host_cancellation: { icon: AlertCircle, tone: "bg-status-rejected/10 text-status-rejected" },
+};
+
+type Group = "today" | "yesterday" | "earlier";
+const GROUPS: Group[] = ["today", "yesterday", "earlier"];
+
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+function groupOf(createdAt: string): Group {
+  const diffDays = Math.floor((startOfDay(new Date()) - startOfDay(new Date(createdAt))) / 86_400_000);
+  if (diffDays <= 0) return "today";
+  if (diffDays === 1) return "yesterday";
+  return "earlier";
+}
+
+function timeLabel(createdAt: string, locale: Locale, t: Dict): string {
+  const time = new Intl.DateTimeFormat(locale === "ar" ? "ar" : "en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    numberingSystem: "latn",
+  }).format(new Date(createdAt));
+  const g = groupOf(createdAt);
+  if (g === "today") return `${t.notif.groupToday}، ${time}`;
+  if (g === "yesterday") return `${t.notif.groupYesterday}، ${time}`;
+  return `${formatDateShort(createdAt, locale)}، ${time}`;
+}
 
 export default function NotificationsPage() {
   const { t, locale } = useLocale();
@@ -42,24 +79,20 @@ export default function NotificationsPage() {
 
   const all = data ?? [];
   const unread = all.filter((x) => !x.read).length;
-  const catCount = (c: (typeof CATS)[number]) => (c === "all" ? all.length : all.filter((x) => x.category === c).length);
-  const shown = all.filter((x) => tab === "all" || x.category === tab);
+  const catCount = (c: (typeof CATS)[number]) =>
+    c === "all" ? all.length : all.filter((x) => typeCategory[x.type] === c).length;
+  const shown = all.filter((x) => tab === "all" || typeCategory[x.type] === tab);
 
   async function markAll() {
     await api.markAllRead();
     setData(all.map((x) => ({ ...x, read: true })));
   }
-  function dismiss(id: string) {
-    setData(all.filter((x) => x.id !== id));
-  }
 
-  const catLabel: Record<NotificationCategory | "all", string> = {
+  const catLabel: Record<(typeof CATS)[number], string> = {
     all: t.common.all,
     booking: n.catBooking,
-    review: n.catReview,
-    payment: n.catPayment,
-    alert: n.catAlert,
-    system: n.catSystem,
+    units: n.catUnits,
+    alert: n.catAlerts,
   };
 
   return (
@@ -85,51 +118,46 @@ export default function NotificationsPage() {
         <ErrorState onRetry={reload} />
       ) : (
         <>
-          {/* Summary cards */}
+          {/* Summary cards — category rollup derived from `type` */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <SummaryCard label={n.cardUnread} count={unread} tone="bg-brand-soft text-brand" highlight />
             <SummaryCard label={n.cardBookings} count={catCount("booking")} tone="bg-status-approved/15 text-status-approved" />
-            <SummaryCard label={n.cardPayments} count={catCount("payment")} tone="bg-status-approved/15 text-status-approved" />
+            <SummaryCard label={n.cardUnits} count={catCount("units")} tone="bg-status-approved/15 text-status-approved" />
             <SummaryCard label={n.cardAlerts} count={catCount("alert")} tone="bg-status-rejected/10 text-status-rejected" />
           </div>
 
           {/* Filter tabs */}
           <div className="flex flex-wrap items-center gap-1 rounded-full bg-white p-1 shadow-card sm:w-fit">
-            {CATS.map((c) => {
-              const Icon = c === "all" ? null : catConfig[c].icon;
-              return (
-                <button
-                  key={c}
-                  onClick={() => setTab(c)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition",
-                    tab === c ? "bg-brand text-white shadow-sm" : "text-ink-muted hover:text-ink",
-                  )}
-                >
-                  {Icon && <Icon className="h-3.5 w-3.5" />}
-                  {catLabel[c]}{" "}
-                  <span className={cn("tabular-nums", tab === c ? "text-white/80" : "text-ink-faint")}>({catCount(c)})</span>
-                </button>
-              );
-            })}
+            {CATS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setTab(c)}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-sm font-medium transition",
+                  tab === c ? "bg-brand text-white shadow-sm" : "text-ink-muted hover:text-ink",
+                )}
+              >
+                {catLabel[c]}{" "}
+                <span className={cn("tabular-nums", tab === c ? "text-white/80" : "text-ink-faint")}>({catCount(c)})</span>
+              </button>
+            ))}
           </div>
 
-          {/* Grouped list */}
+          {/* Grouped list — grouping computed from createdAt */}
           <div className="space-y-6">
             {GROUPS.map((g) => {
-              const items = shown.filter((x) => x.group === g);
+              const items = shown.filter((x) => groupOf(x.createdAt) === g);
               if (items.length === 0) return null;
-              const groupLabel = { today: n.groupToday, yesterday: n.groupYesterday, earlier: n.groupEarlier }[g];
+              const groupHeading = { today: n.groupToday, yesterday: n.groupYesterday, earlier: n.groupEarlier }[g];
               return (
                 <div key={g} className="space-y-3">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{groupLabel}</div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{groupHeading}</div>
                   {items.map((item) => (
                     <NotificationRow
                       key={item.id}
                       item={item}
-                      locale={locale}
+                      label={timeLabel(item.createdAt, locale, t)}
                       onOpen={() => router.push(item.href)}
-                      onDismiss={() => dismiss(item.id)}
                     />
                   ))}
                 </div>
@@ -159,74 +187,35 @@ function SummaryCard({ label, count, tone, highlight }: { label: string; count: 
 
 function NotificationRow({
   item,
-  locale,
+  label,
   onOpen,
-  onDismiss,
 }: {
   item: AppNotification;
-  locale: "ar" | "en";
+  label: string;
   onOpen: () => void;
-  onDismiss: () => void;
 }) {
-  const cfg = catConfig[item.category];
-  const CatIcon = cfg.icon;
+  const cfg = typeStyle[item.type];
+  const Icon = cfg.icon;
   return (
     <div
       onClick={onOpen}
       className={cn(
-        "group flex cursor-pointer gap-4 rounded-2xl border border-line bg-white p-4 shadow-card transition hover:shadow-modal",
+        "flex cursor-pointer gap-4 rounded-2xl border border-line bg-white p-4 shadow-card transition hover:shadow-modal",
         !item.read && "bg-brand-soft/20",
       )}
     >
-      {/* icon / avatar */}
-      <div className="relative shrink-0">
-        {item.guestName ? (
-          <Avatar name={item.guestName} className="h-11 w-11 text-sm" />
-        ) : (
-          <span className={cn("grid h-11 w-11 place-items-center rounded-full", cfg.tone)}>
-            <CatIcon className="h-5 w-5" />
-          </span>
-        )}
-        {item.guestName && (
-          <span className={cn("absolute -bottom-1 -end-1 grid h-5 w-5 place-items-center rounded-full ring-2 ring-white", cfg.tone)}>
-            <CatIcon className="h-3 w-3" />
-          </span>
-        )}
-      </div>
+      <span className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-full", cfg.tone)}>
+        <Icon className="h-5 w-5" />
+      </span>
 
       <div className="min-w-0 flex-1">
-        <div className="font-bold text-ink">{item.title[locale]}</div>
-        <p className="mt-0.5 text-sm text-ink-muted">{item.body[locale]}</p>
-
-        {item.rating != null && (
-          <div className="mt-1 flex items-center gap-1.5 text-sm text-status-pending">
-            <span className="tracking-tight">{"★".repeat(item.rating)}</span>
-            {item.quote && <span>· &ldquo;{item.quote[locale]}&rdquo;</span>}
-          </div>
-        )}
-        {item.meta && (
-          <div className={cn("mt-1 text-sm font-medium", metaClass[item.metaTone ?? "muted"])}>
-            {item.meta[locale]}
-          </div>
-        )}
-
-        <div className="mt-1.5 text-xs text-ink-faint">{item.timeLabel[locale]}</div>
+        {/* title/body are ready Arabic strings from the backend — rendered as-is */}
+        <div className="font-bold text-ink">{item.title}</div>
+        <p className="mt-0.5 text-sm text-ink-muted">{item.body}</p>
+        <div className="mt-1.5 text-xs text-ink-faint">{label}</div>
       </div>
 
-      {/* right controls */}
-      <div className="flex shrink-0 flex-col items-end gap-3">
-        {!item.read && <span className="mt-1 h-2.5 w-2.5 rounded-full bg-brand" />}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDismiss();
-          }}
-          className="text-ink-faint opacity-0 transition hover:text-ink group-hover:opacity-100"
-          aria-label="dismiss"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+      {!item.read && <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-brand" />}
     </div>
   );
 }

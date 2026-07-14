@@ -326,7 +326,7 @@ function GuestHeader({ booking }: { booking: Booking }) {
       <Avatar name={booking.guestName} className="h-16 w-16 text-lg" />
       <div className="min-w-0">
         <h3 className="text-xl font-bold text-ink">{booking.guestName}</h3>
-        {booking.guestEmail && <div className="truncate text-sm text-ink-muted">{booking.guestEmail}</div>}
+        {/* Contract §6: guest contact = phone only (SMS comms) — no email field */}
         <PhoneText phone={booking.guestPhone} className="text-sm text-ink-muted" />
       </div>
     </div>

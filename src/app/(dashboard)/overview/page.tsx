@@ -10,7 +10,14 @@ import { ErrorState, LoadingSkeleton } from "@/components/shared/states";
 import { BRAND } from "@/lib/constants";
 import { formatCompactCurrency } from "@/lib/format";
 import type { Locale } from "@/lib/i18n";
-import type { OverviewMetrics } from "@/types";
+import {
+  deltaPct,
+  sparkline,
+  monthLabel,
+  avgNightlyRate,
+  avgRating,
+  deriveTopProperties,
+} from "@/features/overview/lib/derive-metrics";
 import { AlertTriangle, BarChart3, Star, TrendingDown, TrendingUp } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -30,21 +37,42 @@ import {
 const GREEN = "#1F4A3C";
 const GREEN_LIGHT = "#2E6A54";
 const INK = "#16211C";
-const MINT = "#A8C3B4";
 const GOLD = "#C9862B";
 const GREY = "#8A968E";
 
 export default function OverviewPage() {
   const { t, locale } = useLocale();
-  const { data, loading, error, reload } = useAsync(() => api.getOverview());
+  const overview = useAsync(() => api.getOverview());
+  const units = useAsync(() => api.listUnits());
+  const bookings = useAsync(() => api.listBookings());
+  const partner = useAsync(() => api.getPartner());
 
-  if (loading) return <LoadingSkeleton rows={4} />;
-  if (error || !data) return <ErrorState onRetry={reload} />;
+  if (overview.loading || units.loading || bookings.loading) return <LoadingSkeleton rows={4} />;
+  if (overview.error || !overview.data) return <ErrorState onRetry={overview.reload} />;
 
-  const d = data;
-  const months = t.monthsShort;
-  const revenueData = d.revenueSeries.map((amount, i) => ({ month: months[i], amount }));
-  const bookingsData = d.bookingsSeries.map((count, i) => ({ month: months[i], count }));
+  const d = overview.data;
+  const allUnits = units.data ?? [];
+  const allBookings = bookings.data ?? [];
+
+  // ---- Frontend-derived metrics (contract v1.2: never part of the API) ----
+  const approvedCount = allUnits.filter((u) => u.status === "approved").length;
+  const pendingCount = allUnits.filter((u) => u.status === "pending").length;
+  const pendingActions = pendingCount + allUnits.filter((u) => u.status === "rejected").length;
+
+  const bookingCounts = d.bookingsByMonth.map((m) => m.count);
+  const revenueAmounts = d.revenueByMonth.map((m) => m.amount);
+  const nightly = avgNightlyRate(allUnits);
+  const rating = avgRating(allUnits);
+  const topProperties = deriveTopProperties(allUnits, allBookings);
+
+  const revenueData = d.revenueByMonth.map((m) => ({
+    month: monthLabel(m.month, t.monthsShort),
+    amount: m.amount,
+  }));
+  const bookingsData = d.bookingsByMonth.map((m) => ({
+    month: monthLabel(m.month, t.monthsShort),
+    count: m.count,
+  }));
 
   return (
     <div className="space-y-6">
@@ -54,7 +82,7 @@ export default function OverviewPage() {
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm text-white/70">{t.overview.welcomeBack}</p>
-            <h1 className="mt-1 text-3xl font-bold">{d.partnerName}</h1>
+            <h1 className="mt-1 text-3xl font-bold">{partner.data?.name ?? t.brand}</h1>
             <p className="mt-1 text-sm text-white/70">{heroDate(locale)} · {BRAND.headerLocation[locale]}</p>
           </div>
           <Link
@@ -67,9 +95,9 @@ export default function OverviewPage() {
         </div>
 
         <div className="relative mt-6 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
-          <MiniStat label={t.overview.activeGuests} value={String(d.activeGuests)} />
-          <MiniStat label={t.overview.pendingActions} value={String(d.pendingActions)} />
           <MiniStat label={t.overview.thisMonth} value={formatCompactCurrency(d.thisMonthRevenue, locale)} />
+          <MiniStat label={t.overview.occupancyRate} value={`${d.occupancyRate}%`} />
+          <MiniStat label={t.overview.pendingActions} value={String(pendingActions)} />
         </div>
       </section>
 
@@ -87,62 +115,49 @@ export default function OverviewPage() {
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           label={t.overview.totalProperties}
-          value={String(d.totalProperties)}
-          sub={t.overview.propsBreakdown(d.propertiesApproved, d.propertiesPending)}
-          spark={d.spark.properties}
-          sparkColor={GREEN_LIGHT}
-          delta={d.propertiesDelta}
+          value={String(d.unitsCount)}
+          sub={t.overview.propsBreakdown(approvedCount, pendingCount)}
         />
         <KpiCard
           label={t.overview.totalBookings}
-          value={String(d.totalBookings)}
+          value={String(d.bookingsCount)}
           sub={t.overview.thisYear}
-          spark={d.spark.bookings}
+          spark={sparkline(bookingCounts)}
           sparkColor={GREEN_LIGHT}
-          delta={d.bookingsDeltaPct}
+          delta={deltaPct(bookingCounts)}
           percent
         />
         <KpiCard
           label={t.overview.totalRevenue}
           value={formatCompactCurrency(d.totalRevenue, locale)}
-          sub={`${t.overview.vsLastYear} ${formatCompactCurrency(d.revenueLastYear, locale)}`}
-          spark={d.spark.revenue}
+          sub={t.overview.thisYear}
+          spark={sparkline(revenueAmounts)}
           sparkColor={GREEN_LIGHT}
-          delta={d.revenueDeltaPct}
+          delta={deltaPct(revenueAmounts)}
           percent
         />
-        <KpiCard
-          label={t.overview.occupancyRate}
-          value={`${d.occupancyRate}%`}
-          sub={t.overview.monthlyAverage}
-          spark={d.spark.occupancy}
-          sparkColor={GREEN_LIGHT}
-          delta={d.occupancyDeltaPct}
-          percent
-        />
-        <KpiCard
-          label={t.overview.avgNightlyRate}
-          value={formatCompactCurrency(d.avgNightlyRate, locale)}
-          sub={t.overview.perProperty}
-          spark={d.spark.nightly}
-          sparkColor={GREY}
-          delta={d.avgNightlyDeltaPct}
-          percent
-        />
-        <KpiCard
-          label={t.overview.guestRating}
-          value={d.guestRating.toFixed(1)}
-          sub={t.overview.acrossAll}
-          spark={d.spark.rating}
-          sparkColor={GOLD}
-          delta={d.guestRatingDelta}
-        />
+        {nightly != null && (
+          <KpiCard
+            label={t.overview.avgNightlyRate}
+            value={formatCompactCurrency(nightly, locale)}
+            sub={t.overview.perProperty}
+          />
+        )}
+        {rating != null && (
+          <KpiCard
+            label={t.overview.guestRating}
+            value={rating.toFixed(1)}
+            sub={t.overview.acrossAll}
+            spark={undefined}
+            sparkColor={GOLD}
+          />
+        )}
       </div>
 
       {/* Revenue + Occupancy */}
       <div className="grid gap-5 lg:grid-cols-3">
         <RevenueCard data={revenueData} />
-        <OccupancyCard occupancy={d.occupancy} />
+        <OccupancyCard occupancyRate={d.occupancyRate} />
       </div>
 
       {/* Monthly bookings + Top properties */}
@@ -155,7 +170,7 @@ export default function OverviewPage() {
               <BarChart data={bookingsData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E2E6E1" />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: GREY }} />
-                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: GREY }} />
+                <YAxis tickLine={false} axisLine={false} allowDecimals={false} tick={{ fontSize: 11, fill: GREY }} />
                 <Tooltip cursor={{ fill: "rgba(31,74,60,0.06)" }} contentStyle={tooltipStyle} />
                 <Bar dataKey="count" fill={GREEN} radius={[4, 4, 0, 0]} maxBarSize={22} />
               </BarChart>
@@ -163,7 +178,7 @@ export default function OverviewPage() {
           </div>
         </Card>
 
-        <TopProperties items={d.topProperties} locale={locale} />
+        <TopProperties items={topProperties} locale={locale} />
       </div>
     </div>
   );
@@ -179,25 +194,25 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-/* ---------------- KPI card ---------------- */
+/* ---------------- KPI card (spark/delta optional — hidden when underived) ---------------- */
 function KpiCard({
   label,
   value,
   sub,
   spark,
-  sparkColor,
+  sparkColor = GREEN_LIGHT,
   delta,
   percent,
 }: {
   label: string;
   value: string;
-  sub: string;
-  spark: number[];
-  sparkColor: string;
-  delta: number;
+  sub?: string;
+  spark?: number[];
+  sparkColor?: string;
+  delta?: number;
   percent?: boolean;
 }) {
-  const up = delta >= 0;
+  const up = (delta ?? 0) >= 0;
   return (
     <Card className="p-5">
       <div className="flex items-start justify-between gap-3">
@@ -205,21 +220,25 @@ function KpiCard({
           <div className="text-sm text-ink-muted">{label}</div>
           <div dir="ltr" className="mt-1 text-3xl font-bold tabular-nums text-ink text-start">{value}</div>
         </div>
-        <Sparkline data={spark} color={sparkColor} />
+        {spark && spark.length > 1 && <Sparkline data={spark} color={sparkColor} />}
       </div>
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-xs text-ink-faint">{sub}</span>
-        <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-            up ? "bg-brand-soft text-brand" : "bg-status-rejected/10 text-status-rejected"
-          }`}
-        >
-          {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-          {up ? "+" : ""}
-          {delta}
-          {percent ? "%" : ""}
-        </span>
-      </div>
+      {(sub || delta != null) && (
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-xs text-ink-faint">{sub}</span>
+          {delta != null && (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                up ? "bg-brand-soft text-brand" : "bg-status-rejected/10 text-status-rejected"
+              }`}
+            >
+              {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              {up ? "+" : ""}
+              {delta}
+              {percent ? "%" : ""}
+            </span>
+          )}
+        </div>
+      )}
     </Card>
   );
 }
@@ -254,12 +273,11 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 /* ---------------- Revenue card ---------------- */
 function RevenueCard({ data }: { data: { month: string; amount: number }[] }) {
   const { t } = useLocale();
-  const [range, setRange] = useState<"6m" | "1y" | "all">("1y");
+  const [range, setRange] = useState<"6m" | "1y">("1y");
   const view = range === "6m" ? data.slice(-6) : data;
   const ranges = [
     { key: "6m" as const, label: t.overview.range6m },
     { key: "1y" as const, label: t.overview.range1y },
-    { key: "all" as const, label: t.overview.rangeAll },
   ];
   const year = new Date().getFullYear();
 
@@ -299,9 +317,9 @@ function RevenueCard({ data }: { data: { month: string; amount: number }[] }) {
               tickLine={false}
               axisLine={false}
               tick={{ fontSize: 11, fill: GREY }}
-              tickFormatter={(v: number) => `${v / 1000}K`}
+              tickFormatter={(v: number) => (v >= 1000 ? `${v / 1000}K` : String(v))}
             />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => `${v / 1000}K`} />
+            <Tooltip contentStyle={tooltipStyle} />
             <Area type="monotone" dataKey="amount" stroke={GREEN} strokeWidth={2.5} fill="url(#rev)" />
           </AreaChart>
         </ResponsiveContainer>
@@ -310,14 +328,13 @@ function RevenueCard({ data }: { data: { month: string; amount: number }[] }) {
   );
 }
 
-/* ---------------- Occupancy donut ---------------- */
-function OccupancyCard({ occupancy }: { occupancy: OverviewMetrics["occupancy"] }) {
+/* ---------------- Occupancy donut — booked vs available from the v1.2 scalar ---------------- */
+function OccupancyCard({ occupancyRate }: { occupancyRate: number }) {
   const { t } = useLocale();
   const rows = [
-    { key: "available", value: occupancy.available, color: GREEN_LIGHT },
-    { key: "booked", value: occupancy.booked, color: INK },
-    { key: "blocked", value: occupancy.blocked, color: MINT },
-  ] as const;
+    { key: "booked" as const, value: occupancyRate, color: INK },
+    { key: "available" as const, value: 100 - occupancyRate, color: GREEN_LIGHT },
+  ];
 
   return (
     <Card className="p-6">
@@ -357,23 +374,23 @@ function OccupancyCard({ occupancy }: { occupancy: OverviewMetrics["occupancy"] 
   );
 }
 
-/* ---------------- Top properties ---------------- */
+/* ---------------- Top properties (derived from /units + /bookings) ---------------- */
 function TopProperties({
   items,
   locale,
 }: {
-  items: OverviewMetrics["topProperties"];
+  items: { unitId: string; name: string; revenue: number; rating?: number }[];
   locale: Locale;
 }) {
   const { t } = useLocale();
-  const max = Math.max(...items.map((i) => i.revenue));
+  const max = Math.max(1, ...items.map((i) => i.revenue));
   return (
     <Card className="p-6">
       <h3 className="font-bold text-ink">{t.overview.topProperties}</h3>
       <p className="text-sm text-ink-muted">{t.overview.byRevenue}</p>
       <div className="mt-4 space-y-4">
         {items.map((it, i) => (
-          <div key={it.name} className="flex items-center gap-3">
+          <div key={it.unitId} className="flex items-center gap-3">
             <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-soft text-xs font-bold text-brand tabular-nums">
               {i + 1}
             </span>
@@ -388,10 +405,12 @@ function TopProperties({
                 <div className="h-full rounded-full bg-brand" style={{ width: `${(it.revenue / max) * 100}%` }} />
               </div>
             </div>
-            <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-ink-muted tabular-nums">
-              <Star className="h-3.5 w-3.5 fill-status-pending text-status-pending" />
-              {it.rating.toFixed(1)}
-            </span>
+            {it.rating != null && (
+              <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-ink-muted tabular-nums">
+                <Star className="h-3.5 w-3.5 fill-status-pending text-status-pending" />
+                {it.rating.toFixed(1)}
+              </span>
+            )}
           </div>
         ))}
       </div>

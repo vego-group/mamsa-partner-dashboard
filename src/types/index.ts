@@ -29,7 +29,6 @@ export type Amenity =
 export interface Partner {
   id: string;
   name: string;
-  companyName?: string;
   email: string;
   phone: string; // +9665XXXXXXXX
   accountType: AccountType;
@@ -56,8 +55,11 @@ export interface Unit {
   status: UnitStatus;
   pricePerNight: number; // SAR
   bedrooms: number;
-  bathrooms?: number;
+  bathrooms?: number; // v1.2 — optional
   capacity: number;
+  /** v1.2 — avg guest rating from the user-website reviews. Absent if no reviews yet. */
+  rating?: number; // 0–5
+  reviewsCount?: number; // v1.2 — optional
   city: string; // Saudi cities only
   district: string;
   description: string;
@@ -68,14 +70,11 @@ export interface Unit {
   lng: number;
   address: string;
   tourismLicenseNumber: string;
+  tourismLicenseFileId?: string; // uploaded PDF ref
   photos: UnitPhoto[];
-  rejectionReason?: string;
+  rejectionReason?: string; // present only when status=rejected
+  publicUrl?: string; // present only when approved
   updatedAt: string; // ISO
-  // Display-only aggregates shown on the property card
-  rating?: number; // 0–5
-  reviews?: number;
-  occupancy?: number; // %
-  availability?: "available" | "booked" | "blocked";
 }
 
 export interface BookingFinancials {
@@ -91,7 +90,6 @@ export interface Booking {
   unitName: string;
   unitThumb: string;
   guestName: string;
-  guestEmail?: string;
   guestPhone: string; // +966
   checkIn: string; // ISO
   checkOut: string; // ISO
@@ -99,6 +97,8 @@ export interface Booking {
   guests: number;
   status: BookingStatus;
   financials: BookingFinancials;
+  /** FROZEN at booking time (FR-036) — never re-read from the unit's current policy. */
+  policySnapshot?: { name: string; rules: string };
   notes?: string;
   /** Present when cancelled by host. */
   cancellation?: {
@@ -125,99 +125,51 @@ export interface ICalFeed {
   lastSync: string; // ISO
 }
 
-export type NotificationCategory = "booking" | "review" | "payment" | "alert" | "system";
-export type NotificationGroup = "today" | "yesterday" | "earlier";
+/** §8 — exactly these five types. No review/payment/system notifications exist. */
+export type NotificationType =
+  | "unit_approved"
+  | "unit_rejected"
+  | "new_booking"
+  | "sync_failed"
+  | "host_cancellation";
 
-/** Bilingual text — notification content is templated per locale in the mock. */
-export interface LocalizedText {
-  ar: string;
-  en: string;
-}
-
+/**
+ * §8 contract shape. `title`/`body` are ready Arabic strings from the backend.
+ * Grouping (اليوم/أمس/سابقًا) and time labels are frontend presentation derived
+ * from `createdAt` — never part of the API.
+ */
 export interface AppNotification {
   id: string;
-  category: NotificationCategory;
-  group: NotificationGroup;
+  type: NotificationType;
+  title: string;
+  body: string;
   read: boolean;
-  href: string;
-  title: LocalizedText;
-  body: LocalizedText;
-  timeLabel: LocalizedText;
-  guestName?: string; // renders an avatar when present
-  meta?: LocalizedText; // colored sub-line
-  metaTone?: "green" | "red" | "muted";
-  rating?: number; // review star count
-  quote?: LocalizedText; // review quote
+  createdAt: string; // ISO
+  href: string; // deep link into the app
 }
 
-export interface OverviewTopProperty {
-  name: string;
-  revenue: number; // SAR
-  rating: number; // 0–5
-}
-
-export interface OverviewPropertyPerf {
-  name: string;
-  district: string;
-  city: string;
-  thumb: string;
-  revenue: number; // SAR
-  bookings: number;
-  occupancy: number; // %
-  rating: number; // 0–5
-  growth: number; // % vs last period
-}
-
+/**
+ * §3.1 contract. All deltas, sparklines and month-over-month comparisons are
+ * frontend-derived from the 12-month series (see features/overview/lib/derive-metrics).
+ */
 export interface OverviewMetrics {
-  partnerName: string;
-
-  // Hero mini-stats
-  activeGuests: number;
-  pendingActions: number;
-  thisMonthRevenue: number; // SAR
-
-  // KPI cards
-  totalProperties: number;
-  propertiesApproved: number;
-  propertiesPending: number;
-  propertiesDelta: number; // absolute change vs last period
-
-  totalBookings: number;
-  bookingsDeltaPct: number;
-
-  totalRevenue: number; // SAR (this year)
-  revenueLastYear: number; // SAR
-  revenueDeltaPct: number;
-
-  occupancyRate: number; // %
-  occupancyDeltaPct: number;
-
-  avgNightlyRate: number; // SAR
-  avgNightlyDeltaPct: number;
-
-  guestRating: number; // 0–5
-  guestRatingDelta: number;
-
-  // Per-card sparkline series (8 points each)
-  spark: {
-    properties: number[];
-    bookings: number[];
-    revenue: number[];
-    occupancy: number[];
-    nightly: number[];
-    rating: number[];
-  };
-
-  netProfitDeltaPct: number;
-
-  // Charts — 12 points, Jan…Dec
-  revenueSeries: number[]; // SAR
-  bookingsSeries: number[];
-  occupancySeries: number[]; // %
-  occupancy: { available: number; booked: number; blocked: number }; // %
-
-  topProperties: OverviewTopProperty[];
-  propertyPerformance: OverviewPropertyPerf[];
-
+  unitsCount: number; // excluding drafts
+  bookingsCount: number; // confirmed + completed (NOT cancelled)
+  totalRevenue: number; // SAR — partner share (98%) of non-cancelled bookings
+  bookingsByMonth: { month: string; count: number }[]; // last 12 months, "YYYY-MM"
+  revenueByMonth: { month: string; amount: number }[]; // last 12 months, SAR
+  thisMonthRevenue: number; // v1.2 — partner share (SAR), current calendar month
+  occupancyRate: number; // v1.2 — % booked/available nights, current month
   hasRejectedUnit: boolean;
+}
+
+/** §7.1 `GET /reports/summary?from=&to=`. */
+export interface ReportsSummary {
+  grossRevenue: number; // sum of totals (non-cancelled, in range)
+  bookingsCount: number;
+  commission: number; // 2%
+  netProfit: number; // grossRevenue - commission (SAR)
+  revenueByMonth: { month: string; amount: number }[];
+  bookingsByMonth: { month: string; count: number }[];
+  perUnit: { unitId: string; unitName: string; bookings: number; revenue: number }[];
 }

@@ -124,12 +124,9 @@ function PropertyCard({
           </div>
         )}
 
-        {/* status + availability badges */}
+        {/* lifecycle status badge */}
         <div className="absolute start-3 top-3 flex flex-wrap gap-2">
           <OverlayBadge tone={u.status}>{t.unitStatus[u.status]}</OverlayBadge>
-          {u.availability && (
-            <OverlayBadge tone={u.availability}>{t.dayStatus[u.availability]}</OverlayBadge>
-          )}
         </div>
 
         {/* menu */}
@@ -148,7 +145,7 @@ function PropertyCard({
             <div className="absolute bottom-3 start-3 flex items-center gap-1.5 text-sm font-semibold text-white">
               <Star className="h-4 w-4 fill-status-pending text-status-pending" />
               <span className="tabular-nums">{u.rating.toFixed(1)}</span>
-              {u.reviews != null && <span className="font-normal text-white/70">({u.reviews})</span>}
+              {u.reviewsCount != null && <span className="font-normal text-white/70">({u.reviewsCount})</span>}
             </div>
           </>
         )}
@@ -164,35 +161,21 @@ function PropertyCard({
           <span className="truncate">{location(u, locale)}</span>
         </p>
 
-        <div className="mt-4 flex items-end justify-between gap-2">
-          <div>
-            {u.pricePerNight > 0 ? (
-              <>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-sm font-semibold text-ink-muted">{cur}</span>
-                  <span className="text-2xl font-bold tabular-nums text-ink">
-                    {u.pricePerNight.toLocaleString("en-US")}
-                  </span>
-                </div>
-                <div className="text-xs text-ink-muted">{t.units.perNight}</div>
-              </>
-            ) : (
-              <span className="text-lg text-ink-faint">—</span>
-            )}
-          </div>
-          {u.occupancy != null && (
-            <div className="text-end">
-              <div className="text-sm font-bold tabular-nums text-ink">{u.occupancy}%</div>
-              <div className="text-xs text-ink-muted">{t.units.occupancy}</div>
-            </div>
+        <div className="mt-4">
+          {u.pricePerNight > 0 ? (
+            <>
+              <div className="flex items-baseline gap-1">
+                <span className="text-sm font-semibold text-ink-muted">{cur}</span>
+                <span className="text-2xl font-bold tabular-nums text-ink">
+                  {u.pricePerNight.toLocaleString("en-US")}
+                </span>
+              </div>
+              <div className="text-xs text-ink-muted">{t.units.perNight}</div>
+            </>
+          ) : (
+            <span className="text-lg text-ink-faint">—</span>
           )}
         </div>
-
-        {u.occupancy != null && (
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-cream">
-            <div className="h-full rounded-full bg-brand" style={{ width: `${u.occupancy}%` }} />
-          </div>
-        )}
 
         {u.status === "rejected" && u.rejectionReason && (
           <p className="mt-3 rounded-2xl bg-status-rejected/8 px-3 py-2 text-xs text-status-rejected">
