@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { api } from "@/lib/api/client";
+import { api, ApiError } from "@/lib/api/client";
 import { Modal, Button } from "@/components/ui";
 import { Avatar } from "@/components/shared/avatar";
 import { BookingBadge } from "@/components/shared/status-badge";
@@ -40,6 +40,7 @@ export function BookingDetail({
   const [view, setView] = useState<View>(booking.status === "cancelled" ? "cancelled" : "details");
   const [reason, setReason] = useState<string>();
   const [otherText, setOtherText] = useState("");
+  const [cancelError, setCancelError] = useState<string>();
 
   const REASONS = [
     { value: "booked_elsewhere", label: b.reasonBookedElsewhere },
@@ -62,10 +63,19 @@ export function BookingDetail({
   );
 
   async function confirmCancel() {
+    setCancelError(undefined);
     setView("processing");
-    const updated = await api.hostCancel(booking.id, reasonLabel, idempotencyKey);
-    onCancelled(updated);
-    setView("cancelled");
+    try {
+      const updated = await api.hostCancel(booking.id, reasonLabel, idempotencyKey);
+      onCancelled(updated);
+      setView("cancelled");
+    } catch (e) {
+      // Back to "confirm" (not stuck on the unclosable "processing" modal) so the
+      // partner can see what happened and retry — the idempotency key is stable
+      // across retries, so a retry after a network failure is always safe.
+      setCancelError(e instanceof ApiError ? e.message : t.states.errorBody);
+      setView("confirm");
+    }
   }
 
   /* ---- reason ---- */
@@ -200,6 +210,12 @@ export function BookingDetail({
           <div className="my-2 h-px bg-status-rejected/15" />
           <Row label={<span className="font-bold text-ink">{b.netLoss}</span>} value={<MoneyText amount={f.partnerShare} className="font-bold text-status-rejected" />} />
         </div>
+
+        {cancelError && (
+          <div className="mt-4 flex items-center gap-2 rounded-2xl bg-status-rejected/10 px-4 py-3 text-sm text-status-rejected">
+            <AlertCircle className="h-4 w-4 shrink-0" /> {cancelError}
+          </div>
+        )}
       </Modal>
     );
   }

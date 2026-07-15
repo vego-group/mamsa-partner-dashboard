@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { api } from "@/lib/api/client";
+import { useRouter } from "next/navigation";
+import { api, ApiError } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
-import { Button } from "@/components/ui";
+import { Button, Modal } from "@/components/ui";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/shared/states";
 import { SAUDI_CITIES } from "@/lib/constants";
 import type { Locale } from "@/lib/i18n";
@@ -25,12 +26,14 @@ import {
   Star,
   MoreHorizontal,
   Building2,
+  Loader2,
 } from "lucide-react";
 
 const FILTERS: (UnitStatus | "all")[] = ["all", "approved", "pending", "rejected", "draft"];
 
 export default function UnitsPage() {
   const { t, locale } = useLocale();
+  const router = useRouter();
   const { data, loading, error, reload } = useAsync(() => api.listUnits());
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
 
@@ -38,6 +41,24 @@ export default function UnitsPage() {
   const list = all.filter((u) => filter === "all" || u.status === filter);
   const approvedCount = all.filter((u) => u.status === "approved").length;
   const [modal, setModal] = useState<{ type: PropertyModalType; unit: Unit } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Unit | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string>();
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(undefined);
+    try {
+      await api.deleteUnit(deleteTarget.id);
+      setDeleteTarget(null);
+      reload();
+    } catch (e) {
+      setDeleteError(e instanceof ApiError ? e.message : t.states.errorBody);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -89,12 +110,43 @@ export default function UnitsPage() {
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((u) => (
-            <PropertyCard key={u.id} unit={u} locale={locale} onAction={(type) => setModal({ type, unit: u })} />
+            <PropertyCard
+              key={u.id}
+              unit={u}
+              locale={locale}
+              onAction={(type) => setModal({ type, unit: u })}
+              onEdit={() => router.push(`/units/${u.id}/edit`)}
+              onDelete={() => {
+                setDeleteError(undefined);
+                setDeleteTarget(u);
+              }}
+            />
           ))}
         </div>
       )}
 
       {modal && <PropertyModal type={modal.type} unit={modal.unit} onClose={() => setModal(null)} />}
+
+      <Modal
+        open={Boolean(deleteTarget)}
+        onClose={() => !deleting && setDeleteTarget(null)}
+        title={t.units.deleteTitle}
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              {t.common.cancel}
+            </Button>
+            <Button variant="danger" className="flex-1" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {deleting ? t.units.deleting : t.common.delete}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-muted">{t.units.deleteConfirm(deleteTarget?.name ?? "")}</p>
+        {deleteError && <p className="mt-3 text-sm text-status-rejected">{deleteError}</p>}
+      </Modal>
     </div>
   );
 }
@@ -104,10 +156,14 @@ function PropertyCard({
   unit: u,
   locale,
   onAction,
+  onEdit,
+  onDelete,
 }: {
   unit: Unit;
   locale: Locale;
   onAction: (type: PropertyModalType) => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const { t } = useLocale();
   const cur = locale === "ar" ? "ر.س" : "SAR";
@@ -184,7 +240,7 @@ function PropertyCard({
         )}
 
         <div className="mt-4 flex items-center gap-2 border-t border-line pt-4">
-          <UnitActions status={u.status} id={u.id} onAction={onAction} />
+          <UnitActions status={u.status} onAction={onAction} onEdit={onEdit} onDelete={onDelete} />
         </div>
       </div>
     </div>
@@ -216,10 +272,13 @@ function OverlayBadge({ tone, children }: { tone: string; children: React.ReactN
 function UnitActions({
   status,
   onAction,
+  onEdit,
+  onDelete,
 }: {
   status: UnitStatus;
-  id: string;
   onAction: (type: PropertyModalType) => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const iconBtn =
     "grid h-9 w-9 place-items-center rounded-full bg-cream text-ink-muted transition hover:bg-brand-soft hover:text-brand";
@@ -227,10 +286,10 @@ function UnitActions({
   if (status === "draft") {
     return (
       <>
-        <button onClick={() => onAction("edit")} className={iconBtn} title="edit">
+        <button onClick={onEdit} className={iconBtn} title="edit">
           <Pencil className="h-4 w-4" />
         </button>
-        <button className={`${iconBtn} hover:bg-status-rejected/10 hover:text-status-rejected`} title="delete">
+        <button onClick={onDelete} className={`${iconBtn} hover:bg-status-rejected/10 hover:text-status-rejected`} title="delete">
           <Trash2 className="h-4 w-4" />
         </button>
       </>
@@ -249,7 +308,7 @@ function UnitActions({
         <button onClick={() => onAction("preview")} className={iconBtn} title="view">
           <Eye className="h-4 w-4" />
         </button>
-        <button onClick={() => onAction("edit")} className={iconBtn} title="resubmit">
+        <button onClick={onEdit} className={iconBtn} title="resubmit">
           <RefreshCw className="h-4 w-4" />
         </button>
       </>
@@ -261,7 +320,7 @@ function UnitActions({
       <button onClick={() => onAction("preview")} className={iconBtn} title="view">
         <Eye className="h-4 w-4" />
       </button>
-      <button onClick={() => onAction("edit")} className={iconBtn} title="edit">
+      <button onClick={onEdit} className={iconBtn} title="edit">
         <Pencil className="h-4 w-4" />
       </button>
       <button onClick={() => onAction("calendar")} className={iconBtn} title="calendar">

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api/client";
+import { api, ApiError } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
 import { ErrorState, LoadingSkeleton } from "@/components/shared/states";
@@ -76,6 +76,7 @@ export default function NotificationsPage() {
   const router = useRouter();
   const { data, loading, error, reload, setData } = useAsync(() => api.listNotifications());
   const [tab, setTab] = useState<(typeof CATS)[number]>("all");
+  const [markError, setMarkError] = useState<string>();
 
   const all = data ?? [];
   const unread = all.filter((x) => !x.read).length;
@@ -84,8 +85,13 @@ export default function NotificationsPage() {
   const shown = all.filter((x) => tab === "all" || typeCategory[x.type] === tab);
 
   async function markAll() {
-    await api.markAllRead();
-    setData(all.map((x) => ({ ...x, read: true })));
+    setMarkError(undefined);
+    try {
+      await api.markAllRead();
+      setData(all.map((x) => ({ ...x, read: true })));
+    } catch (e) {
+      setMarkError(e instanceof ApiError ? e.message : t.states.errorBody);
+    }
   }
 
   const catLabel: Record<(typeof CATS)[number], string> = {
@@ -111,6 +117,8 @@ export default function NotificationsPage() {
           </button>
         )}
       </div>
+
+      {markError && <p className="text-sm text-status-rejected">{markError}</p>}
 
       {loading ? (
         <LoadingSkeleton />

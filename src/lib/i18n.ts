@@ -39,6 +39,7 @@ export const dict: Record<Locale, Dict> = {
       errExpired: "انتهت صلاحية الرمز. أعد الإرسال.",
       errLocked: "تجاوزت عدد المحاولات — اطلب رمزًا جديدًا.",
       errRateLimited: "محاولات كثيرة — انتظر قليلًا ثم أعد المحاولة.",
+      errNetwork: "تعذر الوصول إلى الخادم حالياً. جرّب مرة أخرى.",
       pending: "طلبك قيد المراجعة — سنُشعرك عند الاعتماد.",
       suspended: "الحساب موقوف. تواصل مع الدعم.",
       heroBadge: "فيلا فاخرة · جدة، السعودية",
@@ -91,6 +92,9 @@ export const dict: Record<Locale, Dict> = {
       totalApproved: (total: number, approved: number) => `${total} وحدة · ${approved} معتمدة`,
       perNight: "لكل ليلة",
       newProperty: "إضافة وحدة",
+      deleteTitle: "حذف الوحدة",
+      deleteConfirm: (name: string) => `هل أنت متأكد من حذف «${name}»؟ لا يمكن التراجع عن هذا الإجراء.`,
+      deleting: "جارٍ الحذف…",
     },
     reports: {
       title: "التقارير والتحليلات",
@@ -145,10 +149,26 @@ export const dict: Record<Locale, Dict> = {
       verificationId: "رقم الهوية / السجل التجاري",
       location: "الموقع",
       saveChanges: "حفظ التغييرات",
+      profileSaved: "تم حفظ البيانات",
+      nameRequired: "الاسم مطلوب",
+      emailInvalid: "بريد إلكتروني غير صحيح",
       partnerSince: (d: string) => `شريك منذ ${d}`,
       approved: "معتمد",
       companyType: "شركة إدارة عقارات",
       individualType: "مضيف فرد",
+      companyDocsTitle: "بيانات استلام المدفوعات",
+      companyDocsSubtitle: "مطلوبة مرة واحدة قبل إرسال أول وحدة للمراجعة.",
+      companyDocsCompleteBadge: "مكتملة",
+      companyDocsIncompleteBadge: "غير مكتملة",
+      crLabel: "رقم السجل التجاري",
+      ibanLabel: "رقم الآيبان (IBAN)",
+      authLetterLabel: "خطاب تفويض الممثل",
+      vatCertLabel: "شهادة ضريبة القيمة المضافة",
+      operatorLicenseLabel: "رخصة مشغّل الضيافة",
+      saveCompanyDocs: "حفظ بيانات الشركة",
+      companyDocsSaved: "تم حفظ البيانات",
+      crInvalid: "رقم السجل التجاري يجب أن يتكون من 10 أرقام",
+      ibanInvalid: "رقم الآيبان غير صحيح (يبدأ بـ SA ثم 22 رقمًا)",
     },
     pm: {
       previewTitle: "معاينة الوحدة",
@@ -267,6 +287,8 @@ export const dict: Record<Locale, Dict> = {
     },
     wiz: {
       addNewProperty: "إضافة عقار جديد",
+      editProperty: "تعديل العقار",
+      approvedEditWarning: "تعديل وحدة معتمدة سيعيدها إلى «قيد المراجعة» وتُخفى من الموقع حتى تُعتمد من جديد.",
       draft: "مسودة",
       stepOf: (n: number, total: number) => `الخطوة ${n} من ${total}`,
       minEstimate: (m: number) => `~${m} دقيقة`,
@@ -283,26 +305,19 @@ export const dict: Record<Locale, Dict> = {
       accountType: "نوع الحساب",
       individual: "فرد",
       company: "شركة",
+      accountTypeFixedNote: "نوع حسابك محدد من ملفك الشخصي ولا يمكن تغييره هنا",
       tourismLicense: "التصريح السياحي",
       tourismLicenseNo: "رقم التصريح السياحي",
       uploadTourismLicense: "رفع التصريح السياحي (PDF)",
       pdfMax10: "ملف PDF · بحد أقصى 10 ميجابايت",
       identityVerification: "التحقق من الهوية",
       nationalId: "رقم الهوية الوطنية / الإقامة",
+      verificationIdNote: "مأخوذ من ملفك الشخصي — للتعديل تواصل مع الدعم",
       companyDetails: "بيانات الشركة",
-      commercialReg: "رقم السجل التجاري",
-      companyIban: "آيبان الشركة",
-      companyAddress: "عنوان الشركة",
-      companyAddressPh: "الشارع، الحي، المدينة",
-      companyPhone: "هاتف الشركة",
-      commercialRegPdf: "السجل التجاري (PDF)",
-      commercialRegPdfSub: "نسخة رسمية من السجل التجاري",
-      repAuthLetter: "خطاب تفويض الممثل",
-      repAuthLetterSub: "خطاب تفويض موقّع ومختوم",
-      vatCert: "شهادة ضريبة القيمة المضافة",
-      vatCertSub: "مطلوبة للمنشآت المسجّلة في الضريبة",
-      hospitalityLicense: "رخصة مشغّل الضيافة",
-      hospitalityLicenseSub: "مطلوبة للعقارات من فئة الفنادق فقط",
+      companyDocsComplete: "بيانات استلام المدفوعات مكتملة ✓",
+      companyDocsIncompleteTitle: "أكمل بيانات الشركة أولاً",
+      companyDocsIncompleteBody: "قبل إضافة وحدة، أكمل بيانات استلام المدفوعات (السجل التجاري، الآيبان، والمستندات المطلوبة) من صفحة الحساب.",
+      goToAccount: "الذهاب إلى صفحة الحساب",
       // Step 2
       s2Title: "بيانات العقار",
       s2Sub: "أضف المعلومات الأساسية عن عقارك لمساعدة الضيوف على اتخاذ قرارهم.",
@@ -337,6 +352,12 @@ export const dict: Record<Locale, Dict> = {
       locationPinned: "تم تحديد الموقع",
       locationConfirmed: "تم تأكيد الموقع",
       saudiArabia: "المملكة العربية السعودية",
+      searchBtn: "بحث",
+      searching: "جارٍ البحث…",
+      noResults: "لا توجد نتائج مطابقة",
+      geocodeError: "تعذّر البحث عن العنوان الآن",
+      clickMapHint: "اضغط على الخريطة أو اسحب الدبوس لتحديد الموقع بدقة",
+      outsideSaudi: "هذا الموقع خارج حدود المملكة العربية السعودية",
       // Step 4
       s4Title: "صور العقار",
       s4Sub: "الصور الاحترافية تزيد معدلات الحجز حتى 40٪. أضف صورة غلاف جذابة.",
@@ -346,6 +367,10 @@ export const dict: Record<Locale, Dict> = {
       photoRequired: "يجب رفع صورة واحدة على الأقل للمتابعة.",
       photoTip: "نصيحة: الغرف المصوّرة بضوء النهار الطبيعي تحصل على حجوزات أكثر بنسبة 35٪.",
       cover: "الغلاف",
+      setCover: "تعيين كغلاف",
+      uploading: "جارٍ الرفع…",
+      uploadFailed: "تعذّر رفع الملف",
+      fileTooLarge: (mb: number) => `حجم الملف أكبر من ${mb} ميجابايت`,
       // Step 5
       s5Title: "المراجعة والإرسال",
       s5Sub: "راجع كل التفاصيل قبل إرسال عقارك للمراجعة.",
@@ -366,6 +391,7 @@ export const dict: Record<Locale, Dict> = {
       photoN: (n: number) => `صورة ${n}`,
       uploadedPhotos: "الصور المرفوعة",
       allComplete: "جميع الحقول مكتملة — جاهزة للإرسال للمراجعة.",
+      submitError: "تعذّر إرسال العقار الآن. حاول مرة أخرى.",
       // Success
       submittedSuccessfully: "تم الإرسال بنجاح!",
       submittedBody: "تم إرسال عقارك للمراجعة. ستصلك رسالة خلال 24–48 ساعة.",
@@ -456,6 +482,7 @@ export const dict: Record<Locale, Dict> = {
       errExpired: "The code expired. Resend it.",
       errLocked: "Too many attempts — request a new code.",
       errRateLimited: "Too many requests — wait a moment and try again.",
+      errNetwork: "We couldn't reach the server right now. Please try again.",
       pending: "Your account is under review — we'll notify you once approved.",
       suspended: "Account suspended. Contact support.",
       heroBadge: "Luxury Villa · Jeddah, Saudi Arabia",
@@ -507,6 +534,9 @@ export const dict: Record<Locale, Dict> = {
       totalApproved: (total: number, approved: number) => `${total} total · ${approved} approved`,
       perNight: "per night",
       newProperty: "New Property",
+      deleteTitle: "Delete Property",
+      deleteConfirm: (name: string) => `Delete "${name}"? This action can't be undone.`,
+      deleting: "Deleting…",
     },
     reports: {
       title: "Reports & Analytics",
@@ -561,10 +591,26 @@ export const dict: Record<Locale, Dict> = {
       verificationId: "National ID / CR Number",
       location: "Location",
       saveChanges: "Save Changes",
+      profileSaved: "Changes saved",
+      nameRequired: "Name is required",
+      emailInvalid: "Invalid email address",
       partnerSince: (d: string) => `Partner since ${d}`,
       approved: "Approved",
       companyType: "Property Management Company",
       individualType: "Individual Host",
+      companyDocsTitle: "Payout Details",
+      companyDocsSubtitle: "Required once before your first property can be submitted for review.",
+      companyDocsCompleteBadge: "Complete",
+      companyDocsIncompleteBadge: "Incomplete",
+      crLabel: "Commercial Registration No.",
+      ibanLabel: "IBAN",
+      authLetterLabel: "Representative Authorization Letter",
+      vatCertLabel: "VAT Registration Certificate",
+      operatorLicenseLabel: "Hospitality Operator License",
+      saveCompanyDocs: "Save Company Details",
+      companyDocsSaved: "Details saved",
+      crInvalid: "Commercial Registration must be 10 digits",
+      ibanInvalid: "Invalid IBAN (must start with SA, then 22 digits)",
     },
     pm: {
       previewTitle: "Property Preview",
@@ -683,6 +729,8 @@ export const dict: Record<Locale, Dict> = {
     },
     wiz: {
       addNewProperty: "Add New Property",
+      editProperty: "Edit Property",
+      approvedEditWarning: "Editing an approved property returns it to Pending review and hides it from the site until re-approved.",
       draft: "Draft",
       stepOf: (n: number, total: number) => `Step ${n} of ${total}`,
       minEstimate: (m: number) => `~${m} min`,
@@ -699,26 +747,19 @@ export const dict: Record<Locale, Dict> = {
       accountType: "Account Type",
       individual: "Individual",
       company: "Company",
+      accountTypeFixedNote: "Your account type is set on your profile and can't be changed here",
       tourismLicense: "Tourism License",
       tourismLicenseNo: "Tourism License Number",
       uploadTourismLicense: "Upload Tourism License (PDF)",
       pdfMax10: "PDF file · max 10 MB",
       identityVerification: "Identity Verification",
       nationalId: "National ID / Iqama Number",
+      verificationIdNote: "Taken from your profile — contact support to change it",
       companyDetails: "Company Details",
-      commercialReg: "Commercial Registration No.",
-      companyIban: "Company IBAN",
-      companyAddress: "Company Address",
-      companyAddressPh: "Street, district, city",
-      companyPhone: "Company Phone",
-      commercialRegPdf: "Commercial Registration (PDF)",
-      commercialRegPdfSub: "Official copy of the commercial registration",
-      repAuthLetter: "Representative Authorization Letter",
-      repAuthLetterSub: "Signed and stamped authorization letter",
-      vatCert: "VAT Registration Certificate",
-      vatCertSub: "Required for VAT-registered businesses",
-      hospitalityLicense: "Hospitality Operator License",
-      hospitalityLicenseSub: "Required for hotel-class properties only",
+      companyDocsComplete: "Payout details complete ✓",
+      companyDocsIncompleteTitle: "Complete your company details first",
+      companyDocsIncompleteBody: "Before adding a property, complete your payout details (CR, IBAN, and required documents) on the Account page.",
+      goToAccount: "Go to Account",
       // Step 2
       s2Title: "Property Details",
       s2Sub: "Add the key information about your property to help guests make their decision.",
@@ -753,6 +794,12 @@ export const dict: Record<Locale, Dict> = {
       locationPinned: "Location pinned",
       locationConfirmed: "Location confirmed",
       saudiArabia: "Saudi Arabia",
+      searchBtn: "Search",
+      searching: "Searching…",
+      noResults: "No matching results",
+      geocodeError: "Couldn't search for the address right now",
+      clickMapHint: "Click the map or drag the pin to fine-tune the location",
+      outsideSaudi: "This location is outside Saudi Arabia",
       // Step 4
       s4Title: "Property Photos",
       s4Sub: "Professional photos increase booking rates by up to 40%. Add an eye-catching cover image.",
@@ -762,6 +809,10 @@ export const dict: Record<Locale, Dict> = {
       photoRequired: "At least one photo is required to continue.",
       photoTip: "Tip: Rooms photographed in natural daylight receive 35% more bookings.",
       cover: "Cover",
+      setCover: "Set as cover",
+      uploading: "Uploading…",
+      uploadFailed: "Couldn't upload the file",
+      fileTooLarge: (mb: number) => `File is larger than ${mb} MB`,
       // Step 5
       s5Title: "Review & Submit",
       s5Sub: "Check all details before submitting your property for review.",
@@ -782,6 +833,7 @@ export const dict: Record<Locale, Dict> = {
       photoN: (n: number) => `Photo ${n}`,
       uploadedPhotos: "Uploaded Photos",
       allComplete: "All fields complete — ready to submit for review.",
+      submitError: "Couldn't submit the property right now. Please try again.",
       // Success
       submittedSuccessfully: "Submitted Successfully!",
       submittedBody: "Your property has been sent for review. You will receive a notification within 24–48 hours.",
@@ -865,6 +917,7 @@ export type Dict = {
     errExpired: string;
     errLocked: string;
     errRateLimited: string;
+    errNetwork: string;
     pending: string;
     suspended: string;
     heroBadge: string;
@@ -916,6 +969,9 @@ export type Dict = {
     totalApproved: (total: number, approved: number) => string;
     perNight: string;
     newProperty: string;
+    deleteTitle: string;
+    deleteConfirm: (name: string) => string;
+    deleting: string;
   };
   reports: {
     title: string;
@@ -970,10 +1026,26 @@ export type Dict = {
     verificationId: string;
     location: string;
     saveChanges: string;
+    profileSaved: string;
+    nameRequired: string;
+    emailInvalid: string;
     partnerSince: (d: string) => string;
     approved: string;
     companyType: string;
     individualType: string;
+    companyDocsTitle: string;
+    companyDocsSubtitle: string;
+    companyDocsCompleteBadge: string;
+    companyDocsIncompleteBadge: string;
+    crLabel: string;
+    ibanLabel: string;
+    authLetterLabel: string;
+    vatCertLabel: string;
+    operatorLicenseLabel: string;
+    saveCompanyDocs: string;
+    companyDocsSaved: string;
+    crInvalid: string;
+    ibanInvalid: string;
   };
   pm: {
     previewTitle: string;
@@ -1086,6 +1158,8 @@ export type Dict = {
   >;
   wiz: {
     addNewProperty: string;
+    editProperty: string;
+    approvedEditWarning: string;
     draft: string;
     stepOf: (n: number, total: number) => string;
     minEstimate: (m: number) => string;
@@ -1101,26 +1175,19 @@ export type Dict = {
     accountType: string;
     individual: string;
     company: string;
+    accountTypeFixedNote: string;
     tourismLicense: string;
     tourismLicenseNo: string;
     uploadTourismLicense: string;
     pdfMax10: string;
     identityVerification: string;
     nationalId: string;
+    verificationIdNote: string;
     companyDetails: string;
-    commercialReg: string;
-    companyIban: string;
-    companyAddress: string;
-    companyAddressPh: string;
-    companyPhone: string;
-    commercialRegPdf: string;
-    commercialRegPdfSub: string;
-    repAuthLetter: string;
-    repAuthLetterSub: string;
-    vatCert: string;
-    vatCertSub: string;
-    hospitalityLicense: string;
-    hospitalityLicenseSub: string;
+    companyDocsComplete: string;
+    companyDocsIncompleteTitle: string;
+    companyDocsIncompleteBody: string;
+    goToAccount: string;
     s2Title: string;
     s2Sub: string;
     basicInfo: string;
@@ -1153,6 +1220,12 @@ export type Dict = {
     locationPinned: string;
     locationConfirmed: string;
     saudiArabia: string;
+    searchBtn: string;
+    searching: string;
+    noResults: string;
+    geocodeError: string;
+    clickMapHint: string;
+    outsideSaudi: string;
     s4Title: string;
     s4Sub: string;
     dragPhotos: string;
@@ -1161,6 +1234,10 @@ export type Dict = {
     photoRequired: string;
     photoTip: string;
     cover: string;
+    setCover: string;
+    uploading: string;
+    uploadFailed: string;
+    fileTooLarge: (mb: number) => string;
     s5Title: string;
     s5Sub: string;
     licenseNo: string;
@@ -1180,6 +1257,7 @@ export type Dict = {
     photoN: (n: number) => string;
     uploadedPhotos: string;
     allComplete: string;
+    submitError: string;
     submittedSuccessfully: string;
     submittedBody: string;
     backToProperties: string;

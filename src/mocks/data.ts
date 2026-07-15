@@ -7,6 +7,9 @@ import type {
   AppNotification,
   OverviewMetrics,
   ReportsSummary,
+  CompanyDocs,
+  UnitCreateInput,
+  PresignedUpload,
 } from "@/types";
 import { computeFinancials } from "@/lib/format";
 
@@ -392,4 +395,115 @@ export function syncMockFeed(feedId: string): ICalFeed {
 /** Server-minted public .ics URL with an unguessable per-unit token. */
 export function mockIcalExportUrl(unitId: string): string {
   return `https://api.mamsaa.com/api/v1/calendar/9f3a${unitId.replace(/\W/g, "")}7be2d14cc1.ics`;
+}
+
+/* ---------------- Company payout docs (§9.2 — one-time per partner) ---------------- */
+export const mockCompanyDocs: CompanyDocs = {
+  cr: "",
+  iban: "",
+  authorizationLetterFileId: null,
+  vatCertificateFileId: null,
+  operatorLicenseFileId: null,
+  complete: false,
+};
+
+function recomputeCompanyDocsComplete() {
+  mockCompanyDocs.complete = Boolean(
+    /^\d{10}$/.test(mockCompanyDocs.cr) &&
+      /^SA\d{22}$/i.test(mockCompanyDocs.iban) &&
+      mockCompanyDocs.authorizationLetterFileId &&
+      mockCompanyDocs.vatCertificateFileId &&
+      mockCompanyDocs.operatorLicenseFileId,
+  );
+}
+
+export function saveMockCompanyDocs(patch: Partial<CompanyDocs>): CompanyDocs {
+  Object.assign(mockCompanyDocs, patch);
+  recomputeCompanyDocsComplete();
+  return { ...mockCompanyDocs };
+}
+
+/** §2.2 — PATCH /me editable fields are name + email only. */
+export function saveMockPartner(patch: Partial<Pick<Partner, "name" | "email">>): Partner {
+  Object.assign(mockPartner, patch);
+  return { ...mockPartner };
+}
+
+/* ---------------- Uploads (§9.1 — presign, mocked as an instant local "upload") ---------------- */
+let mockFileSeq = 0;
+export function mockPresignUpload(fileName: string): PresignedUpload {
+  mockFileSeq += 1;
+  const fileId = `file_mock_${Date.now()}_${mockFileSeq}`;
+  // No real server round-trip in mock mode — the client-side mock upload just
+  // records the fileId; there's no uploadUrl to PUT to.
+  return { uploadUrl: "", fileId };
+}
+
+/* ---------------- Units — create + submit (§4) ---------------- */
+export function createMockUnit(input: UnitCreateInput): Unit {
+  const id = `u_${Date.now()}`;
+  const unit: Unit = {
+    id,
+    code: `NEW${Date.now().toString().slice(-6)}`,
+    name: input.name ?? "",
+    type: input.type ?? "apartment",
+    status: "draft",
+    pricePerNight: input.pricePerNight ?? 0,
+    bedrooms: input.bedrooms ?? 0,
+    bathrooms: input.bathrooms,
+    capacity: input.capacity ?? 1,
+    city: input.city ?? "",
+    district: input.district ?? "",
+    description: input.description ?? "",
+    amenities: input.amenities ?? [],
+    checkIn: input.checkIn ?? "15:00",
+    checkOut: input.checkOut ?? "12:00",
+    lat: input.lat ?? 0,
+    lng: input.lng ?? 0,
+    address: input.address ?? "",
+    tourismLicenseNumber: input.tourismLicenseNumber ?? "",
+    tourismLicenseFileId: input.tourismLicenseFileId,
+    photos: (input.photoFileIds ?? []).map((fid, i) => ({
+      id: fid,
+      url: mockUnits[i % mockUnits.length]?.photos[0]?.url ?? "",
+      isCover: fid === input.coverFileId,
+    })),
+    updatedAt: new Date().toISOString(),
+  };
+  mockUnits.push(unit);
+  return unit;
+}
+
+export function updateMockUnit(id: string, input: UnitCreateInput): Unit {
+  const u = mockUnits.find((x) => x.id === id);
+  if (!u) throw new Error("UNIT_NOT_FOUND");
+  Object.assign(u, {
+    ...input,
+    photos: input.photoFileIds
+      ? input.photoFileIds.map((fid, i) => ({
+          id: fid,
+          url: u.photos[i]?.url ?? mockUnits[0]?.photos[0]?.url ?? "",
+          isCover: fid === input.coverFileId,
+        }))
+      : u.photos,
+    // Editing an approved unit returns it to pending (§7).
+    status: u.status === "approved" ? "pending" : u.status,
+    updatedAt: new Date().toISOString(),
+  });
+  return u;
+}
+
+/** POST /units/:id/submit — draft/rejected → pending, full validation server-side. */
+export function submitMockUnit(id: string): Unit {
+  const u = mockUnits.find((x) => x.id === id);
+  if (!u) throw new Error("UNIT_NOT_FOUND");
+  u.status = "pending";
+  u.updatedAt = new Date().toISOString();
+  return u;
+}
+
+/** DELETE /units/:id — drafts only (contract §4); mirrors the removal locally. */
+export function deleteMockUnit(id: string): void {
+  const i = mockUnits.findIndex((x) => x.id === id);
+  if (i >= 0) mockUnits.splice(i, 1);
 }

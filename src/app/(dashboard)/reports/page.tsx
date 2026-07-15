@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { api, IS_MOCK } from "@/lib/api/client";
+import { api, ApiError, IS_MOCK } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
 import { Card, Button } from "@/components/ui";
@@ -61,6 +61,7 @@ export default function ReportsPage() {
   const summary = useAsync(() => api.getReportsSummary(from, to), [range]);
   const units = useAsync(() => api.listUnits());
   const [exporting, setExporting] = useState<"pdf" | "csv">();
+  const [exportError, setExportError] = useState<string>();
 
   if (summary.loading || units.loading) return <LoadingSkeleton rows={4} />;
   if (summary.error || !summary.data) return <ErrorState onRetry={summary.reload} />;
@@ -78,6 +79,7 @@ export default function ReportsPage() {
   /** §7.2 — authenticated blob download (mock mode always yields CSV). */
   async function exportFile(format: "pdf" | "csv") {
     setExporting(format);
+    setExportError(undefined);
     try {
       const blob = await api.exportReport(from, to, format);
       const ext = IS_MOCK ? "csv" : format;
@@ -87,6 +89,8 @@ export default function ReportsPage() {
       a.download = `mamsa-report-${from}_${to}.${ext}`;
       a.click();
       URL.revokeObjectURL(url);
+    } catch (e) {
+      setExportError(e instanceof ApiError ? e.message : t.states.errorBody);
     } finally {
       setExporting(undefined);
     }
@@ -127,6 +131,8 @@ export default function ReportsPage() {
           </Button>
         </div>
       </div>
+
+      {exportError && <p className="text-sm text-status-rejected">{exportError}</p>}
 
       {/* KPI cards — deltas derived client-side from the monthly series */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">

@@ -16,6 +16,9 @@ import type {
   AppNotification,
   OverviewMetrics,
   ReportsSummary,
+  CompanyDocs,
+  UnitCreateInput,
+  UploadKind,
 } from "@/types";
 import {
   mockPartner,
@@ -31,13 +34,77 @@ import {
   deleteMockFeed,
   syncMockFeed,
   mockIcalExportUrl,
+  mockCompanyDocs,
+  saveMockCompanyDocs,
+  saveMockPartner,
+  mockPresignUpload,
+  createMockUnit,
+  updateMockUnit,
+  submitMockUnit,
+  deleteMockUnit,
 } from "@/mocks/data";
 import { OTP } from "@/lib/constants";
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const USE_PROXY = process.env.NODE_ENV === "development";
+const BASE = USE_PROXY ? "/api/proxy" : process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+
+/**
+ * Units/bookings/notifications have no pagination UI (no "load more", no page
+ * controls) — they render whatever this one page returns. The contract's own
+ * example defaults to a 20-item page (§0.5), so without this a partner with
+ * >20 of any of these would silently lose data past page 1. This is a stopgap:
+ * it raises the ceiling but doesn't remove it. If any partner can realistically
+ * exceed 200, this needs real pagination (infinite scroll / page controls),
+ * not a bigger constant.
+ */
+const LIST_ALL_QS = "limit=200";
 
 const delay = (ms = 350) => new Promise((r) => setTimeout(r, ms));
+
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("966")) return digits.slice(3);
+  if (digits.startsWith("0")) return digits.slice(1);
+  return digits;
+}
+
+function isNetworkError(error: unknown): boolean {
+  return (
+    error instanceof TypeError ||
+    (error instanceof Error && /fetch|network|load failed|aborted/i.test(error.message))
+  );
+}
+
+async function fetchWithErrorHandling(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  try {
+    const res = await fetch(input, init);
+    if (!res.ok) throw bounceIfUnauthenticated(await toApiError(res));
+    return res;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (isNetworkError(error)) {
+      throw new ApiError(0, "We couldn't reach the server. Please try again.", "NETWORK_ERROR");
+    }
+    throw error;
+  }
+}
+
+/**
+ * Session expired → bounce to the OTP login (REPORTS.md §4). Keyed on the
+ * `UNAUTHENTICATED` code specifically — a 401 `OTP_WRONG` during login must
+ * NOT redirect. Hard replace so the dead dashboard view leaves history.
+ */
+function bounceIfUnauthenticated(e: ApiError): ApiError {
+  if (
+    e.code === "UNAUTHENTICATED" &&
+    typeof window !== "undefined" &&
+    !window.location.pathname.startsWith("/login")
+  ) {
+    window.location.replace("/login");
+  }
+  return e;
+}
 
 /**
  * Real-mode fetch wrapper. Auth is a cookie session (no bearer token) — always
@@ -46,7 +113,7 @@ const delay = (ms = 350) => new Promise((r) => setTimeout(r, ms));
  * `{ error: { code, message, fields? } }` — surfaced as ApiError.
  */
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetchWithErrorHandling(`${BASE}${path}`, {
     ...init,
     credentials: "include",
     headers: {
@@ -54,7 +121,6 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers ?? {}),
     },
   });
-  if (!res.ok) throw await toApiError(res);
   return res.json() as Promise<T>;
 }
 
@@ -100,7 +166,8 @@ export interface OtpResult {
     | "locked"
     | "rate_limited"
     | "pending"
-    | "suspended";
+    | "suspended"
+    | "network_error";
 }
 
 /** Backend error codes (§1.2 + deviations §2) → login-screen reasons. */
@@ -116,8 +183,16 @@ const otpReasonByCode: Record<string, NonNullable<OtpResult["reason"]>> = {
 };
 
 function toOtpResult(e: unknown): OtpResult {
-  if (e instanceof ApiError && otpReasonByCode[e.code]) {
-    return { ok: false, reason: otpReasonByCode[e.code] };
+  if (e instanceof ApiError) {
+    if (otpReasonByCode[e.code]) {
+      return { ok: false, reason: otpReasonByCode[e.code] };
+    }
+    if (e.code === "NETWORK_ERROR" || e.status === 0) {
+      return { ok: false, reason: "network_error" };
+    }
+  }
+  if (isNetworkError(e)) {
+    return { ok: false, reason: "network_error" };
   }
   throw e;
 }
@@ -133,7 +208,7 @@ export const api = {
     try {
       return await http("/auth/otp/request", {
         method: "POST",
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ phone: normalizePhone(phone) }),
       });
     } catch (e) {
       return toOtpResult(e);
@@ -152,7 +227,7 @@ export const api = {
     try {
       return await http("/auth/otp/verify", {
         method: "POST",
-        body: JSON.stringify({ phone, code }),
+        body: JSON.stringify({ phone: normalizePhone(phone), code }),
       });
     } catch (e) {
       return toOtpResult(e);
@@ -171,6 +246,15 @@ export const api = {
       return mockPartner;
     }
     return http("/me");
+  },
+
+  /** §2.2 — PATCH /me. Editable: name + email only (phone goes through the OTP flow). */
+  async updateMe(patch: { name: string; email: string }): Promise<Partner> {
+    if (USE_MOCK) {
+      await delay();
+      return saveMockPartner(patch);
+    }
+    return http("/me", { method: "PATCH", body: JSON.stringify(patch) });
   },
 
   // ---- Overview ---------------------------------------------------------
@@ -202,11 +286,10 @@ export const api = {
       await delay(500);
       return new Blob(["﻿" + buildReportCsv(from, to)], { type: "text/csv;charset=utf-8" });
     }
-    const res = await fetch(
+    const res = await fetchWithErrorHandling(
       `${BASE}/reports/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&format=${format}`,
       { credentials: "include" },
     );
-    if (!res.ok) throw await toApiError(res);
     return res.blob();
   },
 
@@ -216,7 +299,10 @@ export const api = {
       await delay();
       return mockUnits;
     }
-    return httpList("/units");
+    // The UI has no pagination controls — request a high limit so a partner
+    // with more units than the backend's default page size (contract example: 20)
+    // doesn't silently lose data past page 1.
+    return httpList(`/units?${LIST_ALL_QS}`);
   },
 
   async getUnit(id: string): Promise<Unit> {
@@ -229,40 +315,94 @@ export const api = {
     return http(`/units/${id}`);
   },
 
-  async createUnit(input: Partial<Unit>): Promise<Unit> {
+  /** POST /units — creates a draft. Partial body allowed (drafts skip required-field validation). */
+  async createUnit(input: UnitCreateInput): Promise<Unit> {
     if (USE_MOCK) {
       await delay();
-      return { ...mockUnits[0], ...input, id: `u_${Date.now()}`, status: "pending" };
+      return createMockUnit(input);
     }
     return http("/units", { method: "POST", body: JSON.stringify(input) });
   },
 
-  async updateUnit(id: string, input: Partial<Unit>): Promise<Unit> {
+  async updateUnit(id: string, input: UnitCreateInput): Promise<Unit> {
     if (USE_MOCK) {
       await delay();
-      const u = mockUnits.find((x) => x.id === id)!;
-      // Editing an approved unit returns it to pending (§7).
-      const status = u.status === "approved" ? "pending" : u.status;
-      return { ...u, ...input, status };
+      return updateMockUnit(id, input);
     }
     return http(`/units/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+  },
+
+  /**
+   * POST /units/:id/submit — draft/rejected → pending. Full field validation
+   * happens server-side here (§4); a company partner with incomplete payout
+   * docs gets 409 COMPANY_DOCS_INCOMPLETE.
+   */
+  async submitUnit(id: string): Promise<Unit> {
+    if (USE_MOCK) {
+      await delay(500);
+      return submitMockUnit(id);
+    }
+    return http(`/units/${id}/submit`, { method: "POST" });
   },
 
   async deleteUnit(id: string): Promise<void> {
     if (USE_MOCK) {
       await delay();
+      deleteMockUnit(id);
       return;
     }
     await http(`/units/${id}`, { method: "DELETE" });
   },
 
+  // ---- Uploads (§9.1) ----------------------------------------------------
+  /**
+   * Two-step presigned upload: ask for a signed PUT URL, then PUT the raw
+   * bytes to it, then reference the returned `fileId` on the owning resource
+   * (unit photo / license PDF / company doc). Server validates type by magic
+   * bytes and size ≤10MB on receipt — client MIME is never trusted there.
+   */
+  async uploadFile(kind: UploadKind, file: File): Promise<{ fileId: string }> {
+    if (USE_MOCK) {
+      await delay(400 + Math.random() * 400);
+      return mockPresignUpload(file.name);
+    }
+    const { uploadUrl, fileId } = await http<{ uploadUrl: string; fileId: string }>("/uploads/presign", {
+      method: "POST",
+      body: JSON.stringify({ kind, fileName: file.name, mimeType: file.type, size: file.size }),
+    });
+    const putRes = await fetch(uploadUrl, { method: "PUT", body: file });
+    if (!putRes.ok) throw new ApiError(putRes.status, "تعذّر رفع الملف.", "UPLOAD_FAILED");
+    return { fileId };
+  },
+
+  // ---- Company payout docs (§9.2 — one-time per partner, companies only) ---
+  async getCompanyDocs(): Promise<CompanyDocs> {
+    if (USE_MOCK) {
+      await delay();
+      return { ...mockCompanyDocs };
+    }
+    return http("/me/company-docs");
+  },
+
+  async putCompanyDocs(patch: Partial<CompanyDocs>): Promise<CompanyDocs> {
+    if (USE_MOCK) {
+      await delay();
+      return saveMockCompanyDocs(patch);
+    }
+    return http("/me/company-docs", { method: "PUT", body: JSON.stringify(patch) });
+  },
+
   // ---- Calendar ---------------------------------------------------------
-  async getCalendar(unitId: string, _month: string): Promise<CalendarDay[]> {
+  async getCalendar(unitId: string, month: string): Promise<CalendarDay[]> {
     if (USE_MOCK) {
       await delay();
       return mockCalendar[unitId] ?? mockCalendar.u_1;
     }
-    return http(`/units/${unitId}/calendar?month=${_month}`);
+    // Contract returns a bare array; tolerate a `{ data }` envelope defensively.
+    const json = await http<{ data: CalendarDay[] } | CalendarDay[]>(
+      `/units/${unitId}/calendar?month=${month}`,
+    );
+    return Array.isArray(json) ? json : json.data ?? [];
   },
 
   async blockDates(unitId: string, dates: string[], reason?: string): Promise<void> {
@@ -341,7 +481,7 @@ export const api = {
       await delay();
       return mockBookings;
     }
-    return httpList("/bookings");
+    return httpList(`/bookings?${LIST_ALL_QS}`);
   },
 
   async getBooking(id: string): Promise<Booking> {
@@ -388,7 +528,7 @@ export const api = {
       await delay();
       return mockNotifications;
     }
-    return httpList("/notifications");
+    return httpList(`/notifications?${LIST_ALL_QS}`);
   },
 
   async markAllRead(): Promise<void> {

@@ -56,20 +56,41 @@ export default function CalendarPage() {
   const approved = (units.data ?? []).filter((u) => u.status === "approved");
   const active = approved[0]?.id;
 
-  const cal = useAsync(() => (active ? api.getCalendar(active, "2026-07") : Promise.resolve([])), [active]);
+  // The visible month drives the backend query. Defaults to the current month
+  // (the backend also defaults to it), and the grid refetches whenever it changes.
+  const [viewDate, setViewDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`; // YYYY-MM
+
+  const cal = useAsync(
+    () => (active ? api.getCalendar(active, monthKey) : Promise.resolve([])),
+    [active, monthKey],
+  );
   const feeds = useAsync(() => (active ? api.listFeeds(active) : Promise.resolve([])), [active]);
   const icalExport = useAsync(
     () => (active ? api.getIcalExport(active) : Promise.resolve({ url: "" })),
     [active],
   );
 
-  const [viewDate, setViewDate] = useState(new Date(2026, 6, 1)); // July 2026 (mock month)
   const [overrides, setOverrides] = useState<Record<string, DayStatus>>({});
   const [selected, setSelected] = useState<string[]>([]);
   const [actionError, setActionError] = useState<string>();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [blockReason, setBlockReason] = useState("");
+
+  // Switching months clears the stale selection + optimistic overrides; the grid
+  // itself refetches from the backend through the monthKey dependency above.
+  function goToMonth(next: Date) {
+    setViewDate(next);
+    setSelected([]);
+    setOverrides({});
+    setActionError(undefined);
+  }
 
   const statusMap = useMemo(() => {
     const m: Record<string, DayStatus> = {};
@@ -82,8 +103,6 @@ export default function CalendarPage() {
     return m;
   }, [cal.data]);
 
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstWeekday = new Date(year, month, 1).getDay();
   const monthLabel = new Intl.DateTimeFormat(locale === "ar" ? "ar" : "en-US", {
@@ -114,6 +133,7 @@ export default function CalendarPage() {
       else await api.unblockDates(active, selected);
       setOverrides((o) => ({ ...o, ...Object.fromEntries(selected.map((d) => [d, status])) }));
       setSelected([]);
+      cal.reload(); // reconcile with the server's authoritative grid
     } catch (e) {
       setActionError(e instanceof ApiError ? e.message : t.states.errorBody);
     }
@@ -134,6 +154,7 @@ export default function CalendarPage() {
       setFrom("");
       setTo("");
       setBlockReason("");
+      cal.reload(); // reconcile with the server's authoritative grid
     } catch (e) {
       setActionError(e instanceof ApiError ? e.message : t.states.errorBody);
     }
@@ -151,11 +172,11 @@ export default function CalendarPage() {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 rounded-full bg-white p-1 shadow-card">
-            <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-ink-muted hover:bg-cream">
+            <button onClick={() => goToMonth(new Date(year, month - 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-ink-muted hover:bg-cream">
               <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
             </button>
             <span className="min-w-32 text-center text-sm font-semibold text-ink">{monthLabel}</span>
-            <button onClick={() => setViewDate(new Date(year, month + 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-ink-muted hover:bg-cream">
+            <button onClick={() => goToMonth(new Date(year, month + 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-ink-muted hover:bg-cream">
               <ChevronRight className="h-4 w-4 rtl:rotate-180" />
             </button>
           </div>

@@ -50,6 +50,8 @@ export default function LoginPage() {
         return setNotice(t.login.pending);
       case "suspended":
         return setNotice(t.login.suspended);
+      case "network_error":
+        return setError(t.login.errNetwork);
     }
   }
 
@@ -185,7 +187,7 @@ export default function LoginPage() {
                   dir="ltr"
                   inputMode="numeric"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 9).replace(/^0/, ""))}
                   placeholder="5X XXX XXXX"
                   className="w-full bg-transparent px-4 py-4 text-base tracking-wide outline-none placeholder:text-ink-faint"
                 />

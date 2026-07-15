@@ -41,6 +41,52 @@ export interface Partner {
   memberSince: string; // ISO
 }
 
+/**
+ * §9.2 — one-time, per-partner payout docs (companies only). Entered once on
+ * the Account page, never re-collected per unit. `complete` is server-computed;
+ * a company can't submit a unit while it's false (409 COMPANY_DOCS_INCOMPLETE).
+ */
+export interface CompanyDocs {
+  cr: string; // 10 digits
+  iban: string; // SA + 22 digits
+  authorizationLetterFileId: string | null;
+  vatCertificateFileId: string | null;
+  operatorLicenseFileId: string | null;
+  complete: boolean;
+}
+
+export type UploadKind = "unit_photo" | "license_pdf" | "company_doc";
+
+/** §9.1 — presign → PUT → reference by fileId. */
+export interface PresignedUpload {
+  uploadUrl: string;
+  fileId: string;
+}
+
+/** POST /units — partial body allowed (drafts don't validate required fields). */
+export interface UnitCreateInput {
+  name?: string;
+  type?: PropertyType;
+  pricePerNight?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  capacity?: number;
+  city?: string;
+  district?: string;
+  description?: string;
+  amenities?: Amenity[];
+  checkIn?: string;
+  checkOut?: string;
+  lat?: number;
+  lng?: number;
+  address?: string;
+  tourismLicenseNumber?: string;
+  tourismLicenseFileId?: string;
+  /** Uploaded photo fileIds, in display order; `coverFileId` marks the cover. */
+  photoFileIds?: string[];
+  coverFileId?: string;
+}
+
 export interface UnitPhoto {
   id: string;
   url: string;

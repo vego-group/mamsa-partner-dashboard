@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale } from "@/stores/locale-store";
@@ -34,6 +35,22 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
   const partner = useAsync(() => api.getPartner());
   const bookings = useAsync(() => api.listBookings());
   const notifications = useAsync(() => api.listNotifications());
+  const [signingOut, setSigningOut] = useState(false);
+
+  /**
+   * POST /auth/logout invalidates the server session + clears the cookie, then a
+   * hard replace drops the client router cache so Back can't restore a live view.
+   */
+  async function logout() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await api.logout();
+    } catch {
+      // Session may already be dead — still leave the dashboard.
+    }
+    window.location.replace("/login");
+  }
 
   const badges: Partial<Record<(typeof items)[number]["key"], number>> = {
     bookings: (bookings.data ?? []).filter((b) => b.status !== "cancelled").length,
@@ -90,13 +107,15 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
           <div className="truncate text-sm font-semibold">{name}</div>
           <div className="text-xs text-white/60">{t.overview.proPartner}</div>
         </div>
-        <Link
-          href="/login"
-          className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
+        <button
+          onClick={logout}
+          disabled={signingOut}
+          className="rounded-lg p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
           aria-label={t.nav.logout}
+          title={t.nav.logout}
         >
-          <LogOut className="h-4 w-4" />
-        </Link>
+          <LogOut className={cn("h-4 w-4", signingOut && "animate-pulse")} />
+        </button>
       </div>
     </div>
   );

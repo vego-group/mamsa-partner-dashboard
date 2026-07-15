@@ -5,16 +5,17 @@ import Image from "next/image";
 import { Modal, Button } from "@/components/ui";
 import { MoneyText } from "@/components/shared/typed-text";
 import { useLocale } from "@/stores/locale-store";
-import { api } from "@/lib/api/client";
+import { api, ApiError } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
+import { ErrorState, LoadingSkeleton } from "@/components/shared/states";
 import { SAUDI_CITIES, BRAND } from "@/lib/constants";
 import type { Locale } from "@/lib/i18n";
 import type { Unit, DayStatus } from "@/types";
 import { cn } from "@/lib/cn";
-import { MapPin, Star, Save, Link2, Check, Building2 } from "lucide-react";
+import { MapPin, Star, Link2, Check, Building2 } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar } from "recharts";
 
-export type PropertyModalType = "preview" | "edit" | "calendar" | "analytics" | "share";
+export type PropertyModalType = "preview" | "calendar" | "analytics" | "share";
 
 function loc(u: Unit, locale: Locale) {
   const city = SAUDI_CITIES.find((c) => c.value === u.city);
@@ -40,7 +41,6 @@ function OverlayBadge({ tone, children }: { tone: string; children: React.ReactN
 
 export function PropertyModal({ type, unit, onClose }: { type: PropertyModalType; unit: Unit; onClose: () => void }) {
   if (type === "preview") return <PreviewModal unit={unit} onClose={onClose} />;
-  if (type === "edit") return <EditModal unit={unit} onClose={onClose} />;
   if (type === "calendar") return <CalendarModal unit={unit} onClose={onClose} />;
   if (type === "analytics") return <AnalyticsModal unit={unit} onClose={onClose} />;
   return <ShareModal unit={unit} onClose={onClose} />;
@@ -104,71 +104,6 @@ function SideTile({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-/* ---------------- Edit ---------------- */
-function EditModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
-  const { t, locale } = useLocale();
-  const p = t.pm;
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      size="lg"
-      title={p.editTitle}
-      footer={
-        <>
-          <Button variant="outline" className="flex-1" onClick={onClose}>{t.common.cancel}</Button>
-          <Button className="flex-1" onClick={onClose}>
-            <Save className="h-4 w-4" /> {p.saveChanges}
-          </Button>
-        </>
-      }
-    >
-      <div className="relative mb-5 h-40 overflow-hidden rounded-2xl bg-cream-dark">
-        {unit.photos[0] && <Image src={unit.photos[0].url} alt="" fill className="object-cover" />}
-      </div>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <EditField label={p.propertyName} defaultValue={unit.name} />
-        <EditField label={p.location} defaultValue={loc(unit, locale)} />
-        <EditField label={p.pricePerNight} defaultValue={String(unit.pricePerNight)} />
-        <EditField label={p.bedrooms} defaultValue={String(unit.bedrooms)} />
-        <EditField label={p.bathrooms} defaultValue={String(unit.bathrooms ?? 0)} />
-        <EditField label={p.maxGuests} defaultValue={String(unit.capacity)} />
-      </div>
-      <div className="mt-5">
-        <FieldLabel>{p.description}</FieldLabel>
-        <textarea
-          defaultValue={unit.description}
-          rows={3}
-          className="w-full rounded-xl border border-line bg-cream/40 px-4 py-2.5 text-sm text-ink outline-none focus:border-brand focus:bg-white"
-        />
-      </div>
-      <div className="mt-5">
-        <FieldLabel>{p.status}</FieldLabel>
-        {/* Lifecycle is server-enforced (§4) — partners never set status manually. */}
-        <input
-          value={t.unitStatus[unit.status]}
-          readOnly
-          className={cn(inputCls, "cursor-default text-ink-muted")}
-        />
-      </div>
-    </Modal>
-  );
-}
-
-const inputCls = "w-full rounded-xl border border-line bg-cream/40 px-4 py-2.5 text-sm text-ink outline-none focus:border-brand focus:bg-white";
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-faint">{children}</span>;
-}
-function EditField({ label, defaultValue }: { label: string; defaultValue: string }) {
-  return (
-    <label className="block">
-      <FieldLabel>{label}</FieldLabel>
-      <input defaultValue={defaultValue} className={inputCls} />
-    </label>
-  );
-}
-
 /* ---------------- Calendar ---------------- */
 const dayColors: Record<DayStatus, string> = {
   available: "bg-status-approved/15 text-status-approved",
@@ -177,12 +112,18 @@ const dayColors: Record<DayStatus, string> = {
   external: "bg-[#ECE6F6] text-[#7C5CBF]",
 };
 
+function currentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function CalendarModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   const { t } = useLocale();
   const p = t.pm;
-  const cal = useAsync(() => api.getCalendar(unit.id, "2026-07"), [unit.id]);
+  const cal = useAsync(() => api.getCalendar(unit.id, currentMonthKey()), [unit.id]);
   const [overrides, setOverrides] = useState<Record<string, DayStatus>>({});
   const [selected, setSelected] = useState<string[]>([]);
+  const [error, setError] = useState<string>();
 
   const days = cal.data ?? [];
   const firstWeekday = days[0] ? new Date(days[0].date).getDay() : 0;
@@ -193,43 +134,61 @@ function CalendarModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
     if (s === "booked" || s === "external") return;
     setSelected((prev) => (prev.includes(d.date) ? prev.filter((x) => x !== d.date) : [...prev, d.date]));
   }
-  function apply(status: DayStatus) {
-    setOverrides((o) => ({ ...o, ...Object.fromEntries(selected.map((d) => [d, status])) }));
-    status === "blocked" ? api.blockDates(unit.id, selected) : api.unblockDates(unit.id, selected);
-    setSelected([]);
+  async function apply(status: DayStatus) {
+    setError(undefined);
+    try {
+      if (status === "blocked") await api.blockDates(unit.id, selected);
+      else await api.unblockDates(unit.id, selected);
+      setOverrides((o) => ({ ...o, ...Object.fromEntries(selected.map((d) => [d, status])) }));
+      setSelected([]);
+      cal.reload();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t.states.errorBody);
+    }
   }
   const selectedDays = selected.map((d) => new Date(d).getDate()).sort((a, b) => a - b).join(", ");
 
   return (
     <Modal open onClose={onClose} size="lg" title={p.calendarTitle(unit.name)}>
       <p className="mb-4 text-sm text-ink-muted">{p.clickDatesHint}</p>
-      <div className="grid grid-cols-7 gap-2">
-        {t.calendar.weekdays.map((d) => (
-          <div key={d} className="pb-1 text-center text-xs font-medium text-ink-faint">{d.slice(0, 2)}</div>
-        ))}
-        {Array.from({ length: firstWeekday }).map((_, i) => (
-          <div key={`pad-${i}`} />
-        ))}
-        {days.map((d) => {
-          const s = statusOf(d);
-          const isSel = selected.includes(d.date);
-          const clickable = s !== "booked" && s !== "external";
-          return (
-            <button
-              key={d.date}
-              onClick={() => toggle(d)}
-              disabled={!clickable}
-              className={cn(
-                "grid aspect-square place-items-center rounded-2xl text-sm font-semibold transition",
-                isSel ? "bg-amber-500 text-white" : dayColors[s],
-                !clickable && "cursor-default",
-              )}
-            >
-              {new Date(d.date).getDate()}
-            </button>
-          );
-        })}
-      </div>
+
+      {cal.loading ? (
+        <LoadingSkeleton rows={3} />
+      ) : cal.error ? (
+        <ErrorState onRetry={cal.reload} />
+      ) : (
+        <div className="grid grid-cols-7 gap-2">
+          {t.calendar.weekdays.map((d) => (
+            <div key={d} className="pb-1 text-center text-xs font-medium text-ink-faint">{d.slice(0, 2)}</div>
+          ))}
+          {Array.from({ length: firstWeekday }).map((_, i) => (
+            <div key={`pad-${i}`} />
+          ))}
+          {days.map((d) => {
+            const s = statusOf(d);
+            const isSel = selected.includes(d.date);
+            const clickable = s !== "booked" && s !== "external";
+            return (
+              <button
+                key={d.date}
+                onClick={() => toggle(d)}
+                disabled={!clickable}
+                className={cn(
+                  "grid aspect-square place-items-center rounded-2xl text-sm font-semibold transition",
+                  isSel ? "bg-amber-500 text-white" : dayColors[s],
+                  !clickable && "cursor-default",
+                )}
+              >
+                {new Date(d.date).getDate()}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {error && (
+        <p className="mt-3 text-sm text-status-rejected">{error}</p>
+      )}
 
       {selected.length > 0 ? (
         <div className="mt-5 rounded-2xl bg-brand-soft/60 p-4">
@@ -259,7 +218,7 @@ function CalendarModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
 function AnalyticsModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   const { t } = useLocale();
   const p = t.pm;
-  const cal = useAsync(() => api.getCalendar(unit.id, "2026-07"), [unit.id]);
+  const cal = useAsync(() => api.getCalendar(unit.id, currentMonthKey()), [unit.id]);
 
   const days = cal.data ?? [];
   const bookedDays = days.filter((d) => d.status === "booked");
