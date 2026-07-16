@@ -1,31 +1,39 @@
 import { NextRequest } from "next/server";
 
-const BASE_API = process.env.NEXT_PUBLIC_API_BASE_URL;
-if (!BASE_API) {
-  throw new Error("NEXT_PUBLIC_API_BASE_URL must be set for the API proxy.");
+// This proxy is dev-only (client.ts only routes through it when
+// NODE_ENV === "development"); production traffic never hits this file.
+// Read the env var lazily, inside the request handler — NOT at module scope.
+// A module-scope throw runs during `next build`'s page-data collection for
+// EVERY route regardless of whether it's ever called, so a missing env var
+// here used to fail the entire production build instead of just this route.
+function requireBaseApi(): string {
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!base) throw new Error("NEXT_PUBLIC_API_BASE_URL must be set for the API proxy.");
+  return base;
 }
 
-function buildTargetUrl(path: string[], search: string) {
+function buildTargetUrl(baseApi: string, path: string[], search: string) {
   const routePath = path.length > 0 ? `/${path.join("/")}` : "";
-  return `${BASE_API}${routePath}${search}`;
+  return `${baseApi}${routePath}${search}`;
 }
 
-function buildForwardHeaders(req: NextRequest) {
+function buildForwardHeaders(req: NextRequest, baseApi: string) {
   const headers = new Headers(req.headers);
   headers.delete("host");
   headers.delete("accept-encoding");
   // Mutations are gated by an Origin/Referer allowlist on *.mamsaa.com
   // (DEVIATIONS §1). localhost isn't allowlisted, so present the upstream's
   // own origin instead of the browser's.
-  const upstreamOrigin = new URL(BASE_API!).origin;
+  const upstreamOrigin = new URL(baseApi).origin;
   headers.set("origin", upstreamOrigin);
   headers.set("referer", `${upstreamOrigin}/`);
   return headers;
 }
 
 async function proxy(req: NextRequest, path: string[]) {
-  const url = buildTargetUrl(path, req.nextUrl.search);
-  const headers = buildForwardHeaders(req);
+  const baseApi = requireBaseApi();
+  const url = buildTargetUrl(baseApi, path, req.nextUrl.search);
+  const headers = buildForwardHeaders(req, baseApi);
 
   const body = req.method === "GET" || req.method === "HEAD" ? undefined : await req.arrayBuffer();
   const fetchOptions: RequestInit = {

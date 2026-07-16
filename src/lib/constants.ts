@@ -25,16 +25,34 @@ export const OTP = {
 
 export const PHONE_PREFIX = "+966";
 
-/** Saudi cities only. No Dubai/Qatar/UAE anywhere. */
+/**
+ * Saudi cities only. No Dubai/Qatar/UAE anywhere.
+ * Exact 20-slug enum confirmed by the backend (docs/backend/NEXTJS-DASHBOARD-ENUMS.md) —
+ * `Maps::CITIES` in `app/Support/Dashboard/Maps.php`. Slugs are the literal values the
+ * validator checks; never send the label. `mecca`/`medina` were the original (wrong)
+ * slugs — the backend's canonical values are `makkah`/`madinah`.
+ */
 export const SAUDI_CITIES = [
   { value: "riyadh", ar: "الرياض", en: "Riyadh" },
   { value: "jeddah", ar: "جدة", en: "Jeddah" },
+  { value: "makkah", ar: "مكة المكرمة", en: "Makkah" },
+  { value: "madinah", ar: "المدينة المنورة", en: "Madinah" },
   { value: "dammam", ar: "الدمام", en: "Dammam" },
   { value: "khobar", ar: "الخبر", en: "Khobar" },
-  { value: "mecca", ar: "مكة المكرمة", en: "Mecca" },
-  { value: "medina", ar: "المدينة المنورة", en: "Medina" },
+  { value: "dhahran", ar: "الظهران", en: "Dhahran" },
   { value: "taif", ar: "الطائف", en: "Taif" },
   { value: "abha", ar: "أبها", en: "Abha" },
+  { value: "khamis_mushait", ar: "خميس مشيط", en: "Khamis Mushait" },
+  { value: "tabuk", ar: "تبوك", en: "Tabuk" },
+  { value: "buraydah", ar: "بريدة", en: "Buraydah" },
+  { value: "hail", ar: "حائل", en: "Hail" },
+  { value: "jubail", ar: "الجبيل", en: "Jubail" },
+  { value: "yanbu", ar: "ينبع", en: "Yanbu" },
+  { value: "najran", ar: "نجران", en: "Najran" },
+  { value: "jazan", ar: "جازان", en: "Jazan" },
+  { value: "alula", ar: "العلا", en: "AlUla" },
+  { value: "baha", ar: "الباحة", en: "Al Baha" },
+  { value: "hofuf", ar: "الهفوف", en: "Hofuf" },
 ] as const;
 
 export const BRAND = {
