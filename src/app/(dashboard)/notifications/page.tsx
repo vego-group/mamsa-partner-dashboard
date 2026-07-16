@@ -47,6 +47,28 @@ const typeStyle: Record<NotificationType, { icon: typeof Bell; tone: string }> =
 type Group = "today" | "yesterday" | "earlier";
 const GROUPS: Group[] = ["today", "yesterday", "earlier"];
 
+/**
+ * Notification `href` comes from the backend. This dashboard is served at the
+ * domain root (`partner.mamsaa.com/units/...`), but the backend prefixes hrefs
+ * with `/partner` (`/partner/units/19/edit`) — which matches no route here and
+ * hard-404s. Normalize before navigating: drop an absolute origin, strip a
+ * leading `/partner`, and send booking deep-links (rendered as a modal, not a
+ * page) to the bookings list. Reported to backend to align the hrefs too.
+ */
+function normalizeHref(href: string): string {
+  let path = href || "/overview";
+  if (/^https?:\/\//i.test(path)) {
+    try {
+      path = new URL(path).pathname;
+    } catch {
+      /* keep as-is */
+    }
+  }
+  path = path.replace(/^\/partner(?=\/|$)/, ""); // strip the /partner prefix
+  path = path.replace(/^\/bookings\/[^/]+$/, "/bookings"); // detail is a modal, not a route
+  return path || "/overview";
+}
+
 function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
@@ -165,7 +187,7 @@ export default function NotificationsPage() {
                       key={item.id}
                       item={item}
                       label={timeLabel(item.createdAt, locale, t)}
-                      onOpen={() => router.push(item.href)}
+                      onOpen={() => router.push(normalizeHref(item.href))}
                     />
                   ))}
                 </div>
