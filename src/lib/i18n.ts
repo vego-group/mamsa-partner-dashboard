@@ -42,6 +42,13 @@ export const dict: Record<Locale, Dict> = {
       errNetwork: "تعذر الوصول إلى الخادم حالياً. جرّب مرة أخرى.",
       pending: "طلبك قيد المراجعة — سنُشعرك عند الاعتماد.",
       suspended: "الحساب موقوف. تواصل مع الدعم.",
+      underReviewTitle: "طلبك قيد المراجعة",
+      underReviewDesc: "شكراً على انضمامك لـ مَمسَى! طلبك يخضع الآن للمراجعة من قبل فريقنا.",
+      underReviewHint: "سنُشعرك عند اعتماد حسابك. يمكنك بعدها تسجيل الدخول مباشرة.",
+      suspendedTitle: "الحساب موقوف",
+      suspendedDesc: "للأسف، حسابك قد تم إيقافه حالياً. يرجى التواصل مع فريق الدعم للمزيد من المعلومات.",
+      tryAgain: "حاول تسجيل الدخول مرة أخرى",
+      backToLogin: "العودة إلى تسجيل الدخول",
       heroBadge: "فيلا فاخرة · جدة، السعودية",
       heroTitleLine1: "وحداتك.",
       heroTitleLine2: "لوحة واحدة.",
@@ -485,6 +492,13 @@ export const dict: Record<Locale, Dict> = {
       errNetwork: "We couldn't reach the server right now. Please try again.",
       pending: "Your account is under review — we'll notify you once approved.",
       suspended: "Account suspended. Contact support.",
+      underReviewTitle: "Your account is under review",
+      underReviewDesc: "Thank you for joining Mamsa! Your application is currently under review by our team.",
+      underReviewHint: "We'll notify you once your account is approved. You can then sign in directly.",
+      suspendedTitle: "Account suspended",
+      suspendedDesc: "Unfortunately, your account has been suspended. Please contact our support team for more information.",
+      tryAgain: "Try signing in again",
+      backToLogin: "Back to sign in",
       heroBadge: "Luxury Villa · Jeddah, Saudi Arabia",
       heroTitleLine1: "Your units.",
       heroTitleLine2: "One dashboard.",
@@ -920,6 +934,13 @@ export type Dict = {
     errNetwork: string;
     pending: string;
     suspended: string;
+    underReviewTitle: string;
+    underReviewDesc: string;
+    underReviewHint: string;
+    suspendedTitle: string;
+    suspendedDesc: string;
+    tryAgain: string;
+    backToLogin: string;
     heroBadge: string;
     heroTitleLine1: string;
     heroTitleLine2: string;

@@ -173,7 +173,7 @@ export interface ICalFeed {
   lastSync: string | null; // ISO — null until first sync
 }
 
-/** §8 — exactly these five types. No review/payment/system notifications exist. */
+/** §8 — the five agreed types. No review/payment/system notifications exist. */
 export type NotificationType =
   | "unit_approved"
   | "unit_rejected"
@@ -182,13 +182,20 @@ export type NotificationType =
   | "host_cancellation";
 
 /**
+ * What the API actually sends: the §8 five plus extras outside the contract
+ * (staging sent `partner_approved` on first sign-in). UI lookups keyed by type
+ * must fall back gracefully instead of assuming the closed set.
+ */
+export type NotificationTypeWire = NotificationType | (string & {});
+
+/**
  * §8 contract shape. `title`/`body` are ready Arabic strings from the backend.
  * Grouping (اليوم/أمس/سابقًا) and time labels are frontend presentation derived
  * from `createdAt` — never part of the API.
  */
 export interface AppNotification {
   id: string;
-  type: NotificationType;
+  type: NotificationTypeWire;
   title: string;
   body: string;
   read: boolean;

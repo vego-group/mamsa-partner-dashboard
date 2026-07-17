@@ -10,7 +10,7 @@ import { OTP, PHONE_PREFIX } from "@/lib/constants";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Home, MapPin } from "lucide-react";
 
-type Step = "phone" | "otp";
+type Step = "phone" | "otp" | "under_review" | "suspended";
 
 export default function LoginPage() {
   const { t, dir } = useLocale();
@@ -37,7 +37,9 @@ export default function LoginPage() {
   function mapError(res: OtpResult) {
     switch (res.reason) {
       case "wrong_number":
-        return setError(t.login.errWrongNumber);
+        // Server sends a specific message for e.g. the daily OTP cap —
+        // our generic "invalid number" would mislead there.
+        return setError(res.message ?? t.login.errWrongNumber);
       case "wrong_code":
         return setError(t.login.errWrongCode);
       case "expired":
@@ -45,11 +47,17 @@ export default function LoginPage() {
       case "locked":
         return setError(t.login.errLocked);
       case "rate_limited":
-        return setError(t.login.errRateLimited);
+        return setError(res.message ?? t.login.errRateLimited);
       case "pending":
-        return setNotice(t.login.pending);
+        setStep("under_review");
+        setError(undefined);
+        setNotice(undefined);
+        return;
       case "suspended":
-        return setNotice(t.login.suspended);
+        setStep("suspended");
+        setError(undefined);
+        setNotice(undefined);
+        return;
       case "network_error":
         return setError(t.login.errNetwork);
     }
@@ -162,7 +170,7 @@ export default function LoginPage() {
             {t.login.portal}
           </p>
 
-          {step === "phone" ? (
+          {step === "phone" && (
             <>
               <h2 className="mt-2 text-3xl font-bold text-ink">{t.login.welcome}</h2>
               <p className="mt-2 text-ink-muted">{t.login.subtitle}</p>
@@ -204,7 +212,9 @@ export default function LoginPage() {
                 {t.login.sendOtp}
               </Button>
             </>
-          ) : (
+          )}
+
+          {step === "otp" && (
             <>
               <h2 className="mt-2 text-3xl font-bold text-ink">{t.login.verifyTitle}</h2>
               <p className="mt-2 text-ink-muted">
@@ -270,6 +280,56 @@ export default function LoginPage() {
                 className="mx-auto mt-3 block text-center text-sm font-medium text-brand hover:underline"
               >
                 {t.login.changeNumber}
+              </button>
+            </>
+          )}
+
+          {step === "under_review" && (
+            <>
+              <h2 className="mt-2 text-3xl font-bold text-ink">{t.login.underReviewTitle}</h2>
+              <p className="mt-4 text-ink-muted">{t.login.underReviewDesc}</p>
+              <p className="mt-3 text-sm text-ink-muted">{t.login.underReviewHint}</p>
+
+              <Button
+                full
+                className={`mt-8 ${submitButton}`}
+                onClick={() => {
+                  setStep("phone");
+                  setPhone("");
+                  setDigits(Array(OTP.length).fill(""));
+                  setError(undefined);
+                  setCountdown(0);
+                }}
+              >
+                {t.login.tryAgain}
+              </Button>
+            </>
+          )}
+
+          {step === "suspended" && (
+            <>
+              <h2 className="mt-2 text-3xl font-bold text-status-rejected">{t.login.suspendedTitle}</h2>
+              <p className="mt-4 text-ink-muted">{t.login.suspendedDesc}</p>
+
+              <Button
+                full
+                disabled
+                className={`mt-8 ${submitButton} opacity-50 cursor-not-allowed`}
+              >
+                {t.login.suspended}
+              </Button>
+
+              <button
+                onClick={() => {
+                  setStep("phone");
+                  setPhone("");
+                  setDigits(Array(OTP.length).fill(""));
+                  setError(undefined);
+                  setCountdown(0);
+                }}
+                className="mx-auto mt-4 block text-center text-sm font-medium text-brand hover:underline"
+              >
+                {t.login.backToLogin}
               </button>
             </>
           )}

@@ -168,6 +168,14 @@ export interface OtpResult {
     | "pending"
     | "suspended"
     | "network_error";
+  /**
+   * Server-provided user-facing detail (Arabic). Present when the backend sends
+   * a more specific message than our generic copy — e.g. the daily OTP cap
+   * ("تم تجاوز الحد المسموح من المحاولات اليوم") arrives as VALIDATION with a
+   * `fields.phone` message; showing our generic "invalid number" for it is
+   * misleading. Prefer this over the i18n fallback when set.
+   */
+  message?: string;
 }
 
 /** Backend error codes (§1.2 + deviations §2) → login-screen reasons. */
@@ -185,9 +193,19 @@ const otpReasonByCode: Record<string, NonNullable<OtpResult["reason"]>> = {
 function toOtpResult(e: unknown): OtpResult {
   if (e instanceof ApiError) {
     if (otpReasonByCode[e.code]) {
-      return { ok: false, reason: otpReasonByCode[e.code] };
+      // Surface the server's specific wording where our generic copy would
+      // mislead (VALIDATION covers both bad format AND the daily send cap).
+      const message =
+        e.code === "VALIDATION" ? e.fields?.phone ?? e.message
+        : e.code === "RATE_LIMITED" ? e.message
+        : undefined;
+      return { ok: false, reason: otpReasonByCode[e.code], message };
     }
     if (e.code === "NETWORK_ERROR" || e.status === 0) {
+      return { ok: false, reason: "network_error" };
+    }
+    // Unknown server error (e.g. 500, 503) — treat as network error
+    if (e.status >= 500) {
       return { ok: false, reason: "network_error" };
     }
   }
@@ -537,6 +555,15 @@ export const api = {
       return;
     }
     await http("/notifications/read-all", { method: "POST" });
+  },
+
+  /** Flows doc §6.3 — mark a single notification read (fired on row open). */
+  async markRead(id: string): Promise<void> {
+    if (USE_MOCK) {
+      await delay();
+      return;
+    }
+    await http(`/notifications/${id}/read`, { method: "POST" });
   },
 };
 

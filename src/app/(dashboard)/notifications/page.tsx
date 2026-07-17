@@ -44,6 +44,21 @@ const typeStyle: Record<NotificationType, { icon: typeof Bell; tone: string }> =
   host_cancellation: { icon: AlertCircle, tone: "bg-status-rejected/10 text-status-rejected" },
 };
 
+/**
+ * The backend sends types beyond the §8 five (staging: `partner_approved` on
+ * first sign-in) — an unknown type must not crash the page. It renders with a
+ * neutral bell style and belongs to no category, so it appears under "all".
+ */
+const fallbackStyle = { icon: Bell, tone: "bg-brand-soft text-brand" };
+
+function styleOf(type: AppNotification["type"]) {
+  return typeStyle[type as NotificationType] ?? fallbackStyle;
+}
+
+function categoryOf(type: AppNotification["type"]): UiCategory | undefined {
+  return typeCategory[type as NotificationType];
+}
+
 type Group = "today" | "yesterday" | "earlier";
 const GROUPS: Group[] = ["today", "yesterday", "earlier"];
 
@@ -66,6 +81,7 @@ function normalizeHref(href: string): string {
   }
   path = path.replace(/^\/partner(?=\/|$)/, ""); // strip the /partner prefix
   path = path.replace(/^\/bookings\/[^/]+$/, "/bookings"); // detail is a modal, not a route
+  path = path.replace(/^\/dashboard(?=\/|$)/, "/overview"); // backend "dashboard" home = our /overview
   return path || "/overview";
 }
 
@@ -103,8 +119,8 @@ export default function NotificationsPage() {
   const all = data ?? [];
   const unread = all.filter((x) => !x.read).length;
   const catCount = (c: (typeof CATS)[number]) =>
-    c === "all" ? all.length : all.filter((x) => typeCategory[x.type] === c).length;
-  const shown = all.filter((x) => tab === "all" || typeCategory[x.type] === tab);
+    c === "all" ? all.length : all.filter((x) => categoryOf(x.type) === c).length;
+  const shown = all.filter((x) => tab === "all" || categoryOf(x.type) === tab);
 
   async function markAll() {
     setMarkError(undefined);
@@ -187,7 +203,15 @@ export default function NotificationsPage() {
                       key={item.id}
                       item={item}
                       label={timeLabel(item.createdAt, locale, t)}
-                      onOpen={() => router.push(normalizeHref(item.href))}
+                      onOpen={() => {
+                        // Mark read optimistically + fire-and-forget to the API;
+                        // navigation must not wait on (or fail with) this call.
+                        if (!item.read) {
+                          setData(all.map((x) => (x.id === item.id ? { ...x, read: true } : x)));
+                          api.markRead(item.id).catch(() => {});
+                        }
+                        router.push(normalizeHref(item.href));
+                      }}
                     />
                   ))}
                 </div>
@@ -224,7 +248,7 @@ function NotificationRow({
   label: string;
   onOpen: () => void;
 }) {
-  const cfg = typeStyle[item.type];
+  const cfg = styleOf(item.type);
   const Icon = cfg.icon;
   return (
     <div
