@@ -90,7 +90,7 @@ export default function BookingsPage() {
       ) : error ? (
         <ErrorState onRetry={reload} />
       ) : list.length === 0 ? (
-        <EmptyState title={t.states.notFound} />
+        <EmptyState title={t.bookings.emptyTitle} body={t.bookings.emptyBody} />
       ) : view === "grid" ? (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((b) => (

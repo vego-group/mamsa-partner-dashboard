@@ -102,6 +102,8 @@ export const dict: Record<Locale, Dict> = {
       deleteTitle: "حذف الوحدة",
       deleteConfirm: (name: string) => `هل أنت متأكد من حذف «${name}»؟ لا يمكن التراجع عن هذا الإجراء.`,
       deleting: "جارٍ الحذف…",
+      emptyTitle: "لا توجد وحدات بعد",
+      emptyBody: "ابدأ بإضافة أول وحدة لك لعرضها هنا.",
     },
     reports: {
       title: "التقارير والتحليلات",
@@ -144,6 +146,8 @@ export const dict: Record<Locale, Dict> = {
       blockReasonPh: "السبب (اختياري)",
       blockSelectedDates: "حجب التواريخ المحددة",
       weekdays: ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"],
+      noApprovedTitle: "لا توجد وحدات معتمدة بعد",
+      noApprovedBody: "يظهر التقويم بعد اعتماد أول وحدة لك. وحداتك قيد المراجعة حاليًا.",
     },
     account: {
       title: "إعدادات الحساب",
@@ -281,6 +285,8 @@ export const dict: Record<Locale, Dict> = {
       tlRefundInitiated: "بدأ استرداد الضيف",
       tlRefundCompleted: "اكتمل الاسترداد",
       cancelled: "ملغي",
+      emptyTitle: "لا توجد حجوزات بعد",
+      emptyBody: "ستظهر الحجوزات هنا فور وصولها.",
     },
     amenity: {
       wifi: "واي فاي",
@@ -551,6 +557,8 @@ export const dict: Record<Locale, Dict> = {
       deleteTitle: "Delete Property",
       deleteConfirm: (name: string) => `Delete "${name}"? This action can't be undone.`,
       deleting: "Deleting…",
+      emptyTitle: "No units yet",
+      emptyBody: "Add your first unit to see it here.",
     },
     reports: {
       title: "Reports & Analytics",
@@ -593,6 +601,8 @@ export const dict: Record<Locale, Dict> = {
       blockReasonPh: "Reason (optional)",
       blockSelectedDates: "Block Selected Dates",
       weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      noApprovedTitle: "No approved units yet",
+      noApprovedBody: "The calendar appears once your first unit is approved. Your units are currently under review.",
     },
     account: {
       title: "Account Settings",
@@ -730,6 +740,8 @@ export const dict: Record<Locale, Dict> = {
       tlRefundInitiated: "Guest refund initiated",
       tlRefundCompleted: "Refund completed",
       cancelled: "Cancelled",
+      emptyTitle: "No bookings yet",
+      emptyBody: "Bookings will show up here as soon as they arrive.",
     },
     amenity: {
       wifi: "Wi-Fi",
@@ -993,6 +1005,8 @@ export type Dict = {
     deleteTitle: string;
     deleteConfirm: (name: string) => string;
     deleting: string;
+    emptyTitle: string;
+    emptyBody: string;
   };
   reports: {
     title: string;
@@ -1035,6 +1049,8 @@ export type Dict = {
     blockReasonPh: string;
     blockSelectedDates: string;
     weekdays: string[];
+    noApprovedTitle: string;
+    noApprovedBody: string;
   };
   account: {
     title: string;
@@ -1172,6 +1188,8 @@ export type Dict = {
     tlRefundInitiated: string;
     tlRefundCompleted: string;
     cancelled: string;
+    emptyTitle: string;
+    emptyBody: string;
   };
   amenity: Record<
     "wifi" | "ac" | "kitchen" | "parking" | "pool" | "security" | "self_checkin" | "family_friendly",

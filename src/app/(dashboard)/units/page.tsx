@@ -97,8 +97,8 @@ export default function UnitsPage() {
         <ErrorState onRetry={reload} />
       ) : list.length === 0 ? (
         <EmptyState
-          title={t.states.notFound}
-          body="—"
+          title={t.units.emptyTitle}
+          body={t.units.emptyBody}
           action={
             <Link href="/units/new">
               <Button>

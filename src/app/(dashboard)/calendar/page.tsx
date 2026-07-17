@@ -161,7 +161,12 @@ export default function CalendarPage() {
   }
 
   if (units.loading) return <LoadingSkeleton rows={3} />;
-  if (approved.length === 0) return <EmptyState title={t.states.notFound} />;
+  if (units.error) return <ErrorState onRetry={units.reload} />;
+  // Calendar only operates on approved units. A fresh partner whose units are
+  // all pending review lands here — explain that, don't show a 404-style state.
+  if (approved.length === 0) {
+    return <EmptyState title={c.noApprovedTitle} body={c.noApprovedBody} />;
+  }
 
   return (
     <div className="space-y-6">
