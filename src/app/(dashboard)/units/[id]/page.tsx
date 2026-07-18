@@ -75,6 +75,7 @@ export default function UnitDetailPage() {
           <h3 className="mb-3 font-semibold text-ink">البيانات</h3>
           <dl className="space-y-2 text-sm">
             <Row label="السعر / ليلة" value={<MoneyText amount={u.pricePerNight} />} />
+            <Row label="رسوم النظافة" value={<MoneyText amount={u.cleaningFee ?? 0} />} />
             <Row label="غرف النوم" value={`${u.bedrooms}`} />
             <Row label="السعة" value={`${u.capacity} أشخاص`} />
             <Row label="المدينة / الحي" value={`${u.city} · ${u.district}`} />

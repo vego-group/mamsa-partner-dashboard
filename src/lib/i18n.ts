@@ -339,6 +339,7 @@ export const dict: Record<Locale, Dict> = {
       propertyNamePh: "مثال: استوديو إطلالة المرسى",
       propertyTypeLabel: "نوع العقار",
       nightPrice: "سعر الليلة (ر.س)",
+      cleaningFee: "رسوم النظافة (ر.س)",
       bedrooms: "غرف النوم",
       guests: "الضيوف",
       city: "المدينة",
@@ -393,6 +394,8 @@ export const dict: Record<Locale, Dict> = {
       typeLabel: "النوع",
       priceLabel: "السعر",
       sarPerNight: (p: string) => `${p} ر.س / ليلة`,
+      cleaningFeeLabel: "رسوم النظافة",
+      sarAmount: (p: string) => `${p} ر.س`,
       capacity: "السعة",
       bedGuest: (b: number, g: number) => `${b} غرفة · ${g} ضيوف`,
       amenitiesCount: (n: number) => `${n} مختارة`,
@@ -794,6 +797,7 @@ export const dict: Record<Locale, Dict> = {
       propertyNamePh: "e.g. Marina View Studio",
       propertyTypeLabel: "Property Type",
       nightPrice: "Night Price (SAR)",
+      cleaningFee: "Cleaning Fee (SAR)",
       bedrooms: "Bedrooms",
       guests: "Guests",
       city: "City",
@@ -848,6 +852,8 @@ export const dict: Record<Locale, Dict> = {
       typeLabel: "Type",
       priceLabel: "Price",
       sarPerNight: (p: string) => `${p} SAR / night`,
+      cleaningFeeLabel: "Cleaning Fee",
+      sarAmount: (p: string) => `${p} SAR`,
       capacity: "Capacity",
       bedGuest: (b: number, g: number) => `${b} bed · ${g} guests`,
       amenitiesCount: (n: number) => `${n} selected`,
@@ -1234,6 +1240,7 @@ export type Dict = {
     propertyNamePh: string;
     propertyTypeLabel: string;
     nightPrice: string;
+    cleaningFee: string;
     bedrooms: string;
     guests: string;
     city: string;
@@ -1285,6 +1292,8 @@ export type Dict = {
     typeLabel: string;
     priceLabel: string;
     sarPerNight: (p: string) => string;
+    cleaningFeeLabel: string;
+    sarAmount: (p: string) => string;
     capacity: string;
     bedGuest: (b: number, g: number) => string;
     amenitiesCount: (n: number) => string;

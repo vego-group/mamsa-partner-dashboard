@@ -68,6 +68,8 @@ export interface UnitCreateInput {
   name?: string;
   type?: PropertyType;
   pricePerNight?: number;
+  /** Per-unit, partner-editable (SAR). Defaults to 0 if omitted. */
+  cleaningFee?: number;
   bedrooms?: number;
   bathrooms?: number;
   capacity?: number;
@@ -100,6 +102,8 @@ export interface Unit {
   type: PropertyType;
   status: UnitStatus;
   pricePerNight: number; // SAR
+  /** Per-unit, partner-editable (SAR). Optional — treat as 0 if unset. */
+  cleaningFee?: number;
   bedrooms: number;
   bathrooms?: number; // v1.2 — optional
   capacity: number;

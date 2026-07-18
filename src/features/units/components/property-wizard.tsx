@@ -10,6 +10,7 @@ import { SAUDI_CITIES, MAX_UPLOAD_MB } from "@/lib/constants";
 import { cn } from "@/lib/cn";
 import type { Amenity, PropertyType, Unit, UnitCreateInput } from "@/types";
 import { isInsideSaudi, type LatLng } from "@/features/units/lib/geo";
+import { isValidCleaningFee } from "@/features/units/lib/validation";
 import { FileUploadRow, type UploadedFile } from "@/features/units/components/file-upload";
 import {
   X,
@@ -109,6 +110,9 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
   const [name, setName] = useState(existing?.name ?? "");
   const [type, setType] = useState<PropertyType | "">(existing?.type ?? "");
   const [price, setPrice] = useState(existing && existing.pricePerNight > 0 ? String(existing.pricePerNight) : "");
+  const [cleaningFee, setCleaningFee] = useState(
+    existing?.cleaningFee && existing.cleaningFee > 0 ? String(existing.cleaningFee) : "",
+  );
   const [bedrooms, setBedrooms] = useState(existing?.bedrooms ?? 1);
   const [guests, setGuests] = useState(existing?.capacity ?? 2);
   const [city, setCity] = useState(existing?.city ?? "");
@@ -158,7 +162,7 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
 
   const stepValid = [
     Boolean(partner.data) && !(isCompany && companyDocs.loading) && licenseNo.trim().length > 0 && Boolean(tourismFile) && identityOk,
-    name.trim() && type && Number(price) > 0 && city && description.trim().length > 0,
+    name.trim() && type && Number(price) > 0 && city && description.trim().length > 0 && isValidCleaningFee(cleaningFee),
     Boolean(location) && isInsideSaudi(location ?? { lat: 0, lng: 0 }) && address.trim().length > 0,
     photos.some((p) => p.fileId) && !anyPhotoUploading,
     true,
@@ -176,6 +180,7 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
       name: name || undefined,
       type: type || undefined,
       pricePerNight: Number(price) || undefined,
+      cleaningFee: cleaningFee.trim() === "" ? 0 : Number(cleaningFee),
       bedrooms,
       capacity: guests,
       city: city || undefined,
@@ -422,6 +427,11 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                     <FieldLabel required>{w.nightPrice}</FieldLabel>
                     <TextInput value={price} onChange={setPrice} placeholder="0" dir="ltr" type="number" />
                   </div>
+                  <div>
+                    {/* Editable like any other field — saving it on an approved unit sends the unit back to pending (see approvedEditWarning banner above). */}
+                    <FieldLabel>{w.cleaningFee}</FieldLabel>
+                    <TextInput value={cleaningFee} onChange={setCleaningFee} placeholder="0" dir="ltr" type="number" />
+                  </div>
                 </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Stepper label={w.bedrooms} value={bedrooms} onChange={setBedrooms} min={0} />
@@ -608,6 +618,7 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                 <ReviewRow label={w.name} value={name || "—"} />
                 <ReviewRow label={w.typeLabel} value={type ? t.propertyType[type] : "—"} />
                 <ReviewRow label={w.priceLabel} value={w.sarPerNight(price || "0")} />
+                <ReviewRow label={w.cleaningFeeLabel} value={w.sarAmount(cleaningFee || "0")} />
                 <ReviewRow label={w.city} value={cityLabel || "—"} />
                 <ReviewRow label={w.capacity} value={w.bedGuest(bedrooms, guests)} />
                 <ReviewRow label={w.amenities} value={w.amenitiesCount(amenities.length)} />
