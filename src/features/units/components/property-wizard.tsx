@@ -6,11 +6,19 @@ import dynamic from "next/dynamic";
 import { api, ApiError } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
-import { SAUDI_CITIES, MAX_UPLOAD_MB } from "@/lib/constants";
+import {
+  SAUDI_CITIES,
+  MAX_UPLOAD_MB,
+  CANCELLATION_POLICIES,
+  POLICY_REGISTRY,
+  DEFAULT_CANCELLATION_POLICY,
+  isCancellationPolicyName,
+  type CancellationPolicyPreset,
+} from "@/lib/constants";
 import { cn } from "@/lib/cn";
-import type { Amenity, PropertyType, Unit, UnitCreateInput } from "@/types";
+import type { Locale } from "@/lib/i18n";
+import type { Amenity, CancellationPolicyName, PropertyType, Unit, UnitCreateInput } from "@/types";
 import { isInsideSaudi, type LatLng } from "@/features/units/lib/geo";
-import { isValidCleaningFee } from "@/features/units/lib/validation";
 import { FileUploadRow, type UploadedFile } from "@/features/units/components/file-upload";
 import {
   X,
@@ -110,9 +118,6 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
   const [name, setName] = useState(existing?.name ?? "");
   const [type, setType] = useState<PropertyType | "">(existing?.type ?? "");
   const [price, setPrice] = useState(existing && existing.pricePerNight > 0 ? String(existing.pricePerNight) : "");
-  const [cleaningFee, setCleaningFee] = useState(
-    existing?.cleaningFee && existing.cleaningFee > 0 ? String(existing.cleaningFee) : "",
-  );
   const [bedrooms, setBedrooms] = useState(existing?.bedrooms ?? 1);
   const [guests, setGuests] = useState(existing?.capacity ?? 2);
   const [city, setCity] = useState(existing?.city ?? "");
@@ -121,6 +126,9 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
   const [amenities, setAmenities] = useState<Amenity[]>(existing?.amenities ?? []);
   const [checkInTime, setCheckInTime] = useState(existing?.checkIn ?? "15:00");
   const [checkOutTime, setCheckOutTime] = useState(existing?.checkOut ?? "12:00");
+  const [cancellationPolicy, setCancellationPolicy] = useState<CancellationPolicyName>(
+    existing?.cancellationPolicy ?? DEFAULT_CANCELLATION_POLICY,
+  );
 
   // Step 3
   const [location, setLocation] = useState<LatLng | null>(
@@ -162,14 +170,25 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
 
   const stepValid = [
     Boolean(partner.data) && !(isCompany && companyDocs.loading) && licenseNo.trim().length > 0 && Boolean(tourismFile) && identityOk,
-    name.trim() && type && Number(price) > 0 && city && description.trim().length > 0 && isValidCleaningFee(cleaningFee),
+    name.trim() && type && Number(price) > 0 && city && description.trim().length > 0 && isCancellationPolicyName(cancellationPolicy),
     Boolean(location) && isInsideSaudi(location ?? { lat: 0, lng: 0 }) && address.trim().length > 0,
     photos.some((p) => p.fileId) && !anyPhotoUploading,
     true,
   ][step];
 
   const cityLabel = SAUDI_CITIES.find((c) => c.value === city)?.[locale] ?? city;
+  const policyLabel = locale === "ar" ? POLICY_REGISTRY[cancellationPolicy].labelAr : POLICY_REGISTRY[cancellationPolicy].labelEn;
   const coverPhoto = photos.find((p) => p.localId === coverId) ?? photos.find((p) => p.fileId);
+
+  // Captured once on mount so edit mode can tell whether the partner actually
+  // changed anything. Only matters for an already-approved unit: PATCHing it
+  // flips it to pending even when the payload is byte-identical, so a true
+  // no-op save on an approved unit must skip the API call entirely. Draft/
+  // rejected units still submit normally on a no-op save — clicking "Submit
+  // for Review" there is a deliberate status change, not an edit.
+  const [initialInputSnapshot] = useState(() => JSON.stringify(buildInput()));
+  const hasChanges = JSON.stringify(buildInput()) !== initialInputSnapshot;
+  const isNoOpApprovedEdit = editing && existing?.status === "approved" && !hasChanges;
 
   function toggleAmenity(a: Amenity) {
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
@@ -180,7 +199,7 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
       name: name || undefined,
       type: type || undefined,
       pricePerNight: Number(price) || undefined,
-      cleaningFee: cleaningFee.trim() === "" ? 0 : Number(cleaningFee),
+      cancellationPolicy,
       bedrooms,
       capacity: guests,
       city: city || undefined,
@@ -212,6 +231,12 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
   }
 
   async function onSaveDraft() {
+    if (isNoOpApprovedEdit) {
+      // Nothing changed — closing is equivalent to saving, and skips a PATCH
+      // that would otherwise needlessly flip an approved unit back to pending.
+      router.push("/units");
+      return;
+    }
     setSaving(true);
     setSubmitError(null);
     const unit = await persistDraft();
@@ -220,6 +245,10 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
   }
 
   async function onSubmitForReview() {
+    if (isNoOpApprovedEdit) {
+      router.push("/units");
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
     const unit = await persistDraft();
@@ -322,7 +351,7 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
           </div>
 
           {/* Approved-edit warning banner */}
-          {editing && existing?.status === "approved" && (
+          {editing && existing?.status === "approved" && hasChanges && (
             <div className="flex items-start gap-3 rounded-2xl border border-status-pending/40 bg-status-pending/10 px-4 py-3 text-sm text-status-pending">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
               {w.approvedEditWarning}
@@ -427,11 +456,6 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                     <FieldLabel required>{w.nightPrice}</FieldLabel>
                     <TextInput value={price} onChange={setPrice} placeholder="0" dir="ltr" type="number" />
                   </div>
-                  <div>
-                    {/* Editable like any other field — saving it on an approved unit sends the unit back to pending (see approvedEditWarning banner above). */}
-                    <FieldLabel>{w.cleaningFee}</FieldLabel>
-                    <TextInput value={cleaningFee} onChange={setCleaningFee} placeholder="0" dir="ltr" type="number" />
-                  </div>
                 </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Stepper label={w.bedrooms} value={bedrooms} onChange={setBedrooms} min={0} />
@@ -498,6 +522,22 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                     <TextInput value={checkOutTime} onChange={setCheckOutTime} type="time" dir="ltr" />
                   </div>
                 </div>
+              </Section>
+
+              <Section label={w.cancellationPolicy}>
+                <FieldLabel required>{w.cancellationPolicy}</FieldLabel>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {CANCELLATION_POLICIES.map((preset) => (
+                    <PolicyCard
+                      key={preset.name}
+                      preset={preset}
+                      locale={locale}
+                      selected={cancellationPolicy === preset.name}
+                      onSelect={() => setCancellationPolicy(preset.name)}
+                    />
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-ink-faint">{w.cancellationLockedNote}</p>
               </Section>
             </>
           )}
@@ -618,10 +658,10 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                 <ReviewRow label={w.name} value={name || "—"} />
                 <ReviewRow label={w.typeLabel} value={type ? t.propertyType[type] : "—"} />
                 <ReviewRow label={w.priceLabel} value={w.sarPerNight(price || "0")} />
-                <ReviewRow label={w.cleaningFeeLabel} value={w.sarAmount(cleaningFee || "0")} />
                 <ReviewRow label={w.city} value={cityLabel || "—"} />
                 <ReviewRow label={w.capacity} value={w.bedGuest(bedrooms, guests)} />
                 <ReviewRow label={w.amenities} value={w.amenitiesCount(amenities.length)} />
+                <ReviewRow label={w.cancellationPolicy} value={policyLabel} />
               </ReviewCard>
 
               <ReviewCard title={w.s3Title} onEdit={() => setStep(2)} editLabel={t.common.edit}>
@@ -859,6 +899,44 @@ function SelectInput({
         </option>
       ))}
     </select>
+  );
+}
+
+function PolicyCard({
+  preset,
+  locale,
+  selected,
+  onSelect,
+}: {
+  preset: CancellationPolicyPreset;
+  locale: Locale;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const label = locale === "ar" ? preset.labelAr : preset.labelEn;
+  const description = locale === "ar" ? preset.descriptionAr : preset.descriptionEn;
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "flex flex-col items-start gap-2 rounded-2xl border-2 p-4 text-start transition",
+        selected ? "border-brand bg-brand-soft" : "border-line bg-white hover:bg-cream",
+      )}
+    >
+      <div className="flex w-full items-center justify-between">
+        <span className="font-bold text-ink">{label}</span>
+        {selected && <Check className="h-4 w-4 shrink-0 text-brand" />}
+      </div>
+      <p className="text-xs text-ink-muted">{description}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {preset.tiers.map((tier) => (
+          <span key={tier.minDaysBeforeCheckIn} className="rounded-full bg-cream-dark px-2 py-0.5 text-xs font-semibold text-ink">
+            {tier.refundPercent}%
+          </span>
+        ))}
+      </div>
+    </button>
   );
 }
 

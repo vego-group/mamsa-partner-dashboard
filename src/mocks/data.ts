@@ -12,6 +12,7 @@ import type {
   PresignedUpload,
 } from "@/types";
 import { computeFinancials } from "@/lib/format";
+import { DEFAULT_CANCELLATION_POLICY } from "@/lib/constants";
 
 /**
  * Mock seed — deliberately SPEC-CORRECT (the designer's mocks were not):
@@ -45,7 +46,7 @@ export const mockUnits: Unit[] = [
     type: "studio",
     status: "approved",
     pricePerNight: 320,
-    cleaningFee: 0,
+    cancellationPolicy: "flexible",
     bedrooms: 1,
     bathrooms: 1,
     capacity: 2,
@@ -73,7 +74,7 @@ export const mockUnits: Unit[] = [
     type: "apartment",
     status: "approved",
     pricePerNight: 540,
-    cleaningFee: 0,
+    cancellationPolicy: "moderate",
     bedrooms: 2,
     bathrooms: 2,
     capacity: 4,
@@ -101,7 +102,7 @@ export const mockUnits: Unit[] = [
     type: "villa",
     status: "pending",
     pricePerNight: 1200,
-    cleaningFee: 0,
+    cancellationPolicy: "strict",
     bedrooms: 4,
     bathrooms: 3,
     capacity: 8,
@@ -127,7 +128,7 @@ export const mockUnits: Unit[] = [
     type: "apartment",
     status: "rejected",
     pricePerNight: 410,
-    cleaningFee: 0,
+    cancellationPolicy: "moderate",
     bedrooms: 2,
     bathrooms: 2,
     capacity: 3,
@@ -156,7 +157,7 @@ export const mockUnits: Unit[] = [
     type: "apartment",
     status: "draft",
     pricePerNight: 0,
-    cleaningFee: 0,
+    cancellationPolicy: "moderate",
     bedrooms: 1,
     bathrooms: 1,
     capacity: 2,
@@ -454,7 +455,7 @@ export function createMockUnit(input: UnitCreateInput): Unit {
     type: input.type ?? "apartment",
     status: "draft",
     pricePerNight: input.pricePerNight ?? 0,
-    cleaningFee: input.cleaningFee ?? 0,
+    cancellationPolicy: input.cancellationPolicy ?? DEFAULT_CANCELLATION_POLICY,
     bedrooms: input.bedrooms ?? 0,
     bathrooms: input.bathrooms,
     capacity: input.capacity ?? 1,

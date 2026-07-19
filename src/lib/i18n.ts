@@ -339,7 +339,6 @@ export const dict: Record<Locale, Dict> = {
       propertyNamePh: "مثال: استوديو إطلالة المرسى",
       propertyTypeLabel: "نوع العقار",
       nightPrice: "سعر الليلة (ر.س)",
-      cleaningFee: "رسوم النظافة (ر.س)",
       bedrooms: "غرف النوم",
       guests: "الضيوف",
       city: "المدينة",
@@ -354,6 +353,8 @@ export const dict: Record<Locale, Dict> = {
       checkInOut: "الدخول / الخروج",
       checkInTime: "وقت الدخول",
       checkOutTime: "وقت الخروج",
+      cancellationPolicy: "سياسة الإلغاء",
+      cancellationLockedNote: "بعد تسجيل الوصول، يُقفل الإلغاء تلقائيًا في جميع السياسات.",
       // Step 3
       s3Title: "الموقع",
       s3Sub: "يجب أن يقع عقارك داخل السعودية ليُدرج على المنصة.",
@@ -394,8 +395,6 @@ export const dict: Record<Locale, Dict> = {
       typeLabel: "النوع",
       priceLabel: "السعر",
       sarPerNight: (p: string) => `${p} ر.س / ليلة`,
-      cleaningFeeLabel: "رسوم النظافة",
-      sarAmount: (p: string) => `${p} ر.س`,
       capacity: "السعة",
       bedGuest: (b: number, g: number) => `${b} غرفة · ${g} ضيوف`,
       amenitiesCount: (n: number) => `${n} مختارة`,
@@ -797,7 +796,6 @@ export const dict: Record<Locale, Dict> = {
       propertyNamePh: "e.g. Marina View Studio",
       propertyTypeLabel: "Property Type",
       nightPrice: "Night Price (SAR)",
-      cleaningFee: "Cleaning Fee (SAR)",
       bedrooms: "Bedrooms",
       guests: "Guests",
       city: "City",
@@ -812,6 +810,8 @@ export const dict: Record<Locale, Dict> = {
       checkInOut: "Check-in / Check-out",
       checkInTime: "Check-in Time",
       checkOutTime: "Check-out Time",
+      cancellationPolicy: "Cancellation Policy",
+      cancellationLockedNote: "Cancellation locks automatically after check-in, across all presets.",
       // Step 3
       s3Title: "Location",
       s3Sub: "Your property must be located within Saudi Arabia to be listed on the platform.",
@@ -852,8 +852,6 @@ export const dict: Record<Locale, Dict> = {
       typeLabel: "Type",
       priceLabel: "Price",
       sarPerNight: (p: string) => `${p} SAR / night`,
-      cleaningFeeLabel: "Cleaning Fee",
-      sarAmount: (p: string) => `${p} SAR`,
       capacity: "Capacity",
       bedGuest: (b: number, g: number) => `${b} bed · ${g} guests`,
       amenitiesCount: (n: number) => `${n} selected`,
@@ -1240,7 +1238,6 @@ export type Dict = {
     propertyNamePh: string;
     propertyTypeLabel: string;
     nightPrice: string;
-    cleaningFee: string;
     bedrooms: string;
     guests: string;
     city: string;
@@ -1255,6 +1252,8 @@ export type Dict = {
     checkInOut: string;
     checkInTime: string;
     checkOutTime: string;
+    cancellationPolicy: string;
+    cancellationLockedNote: string;
     s3Title: string;
     s3Sub: string;
     searchAddress: string;
@@ -1292,8 +1291,6 @@ export type Dict = {
     typeLabel: string;
     priceLabel: string;
     sarPerNight: (p: string) => string;
-    cleaningFeeLabel: string;
-    sarAmount: (p: string) => string;
     capacity: string;
     bedGuest: (b: number, g: number) => string;
     amenitiesCount: (n: number) => string;

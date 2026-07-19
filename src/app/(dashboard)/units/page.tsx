@@ -9,7 +9,7 @@ import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
 import { Button, Modal } from "@/components/ui";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/shared/states";
-import { SAUDI_CITIES } from "@/lib/constants";
+import { SAUDI_CITIES, POLICY_REGISTRY } from "@/lib/constants";
 import type { Locale } from "@/lib/i18n";
 import type { Unit, UnitStatus } from "@/types";
 import { PropertyModal, type PropertyModalType } from "@/features/units/components/property-modals";
@@ -180,9 +180,12 @@ function PropertyCard({
           </div>
         )}
 
-        {/* lifecycle status badge */}
+        {/* lifecycle status + cancellation policy badges */}
         <div className="absolute start-3 top-3 flex flex-wrap gap-2">
           <OverlayBadge tone={u.status}>{t.unitStatus[u.status]}</OverlayBadge>
+          <OverlayBadge tone={u.cancellationPolicy}>
+            {locale === "ar" ? POLICY_REGISTRY[u.cancellationPolicy].labelAr : POLICY_REGISTRY[u.cancellationPolicy].labelEn}
+          </OverlayBadge>
         </div>
 
         {/* menu */}
@@ -256,6 +259,9 @@ const badgeTone: Record<string, string> = {
   available: "text-status-approved",
   booked: "text-brand",
   blocked: "text-status-draft",
+  flexible: "text-status-approved",
+  moderate: "text-status-pending",
+  strict: "text-status-rejected",
 };
 
 function OverlayBadge({ tone, children }: { tone: string; children: React.ReactNode }) {

@@ -1,3 +1,5 @@
+import type { CancellationPolicyName } from "@/types";
+
 /**
  * Business constants — resolved decisions. Single source; never inline these.
  */
@@ -73,3 +75,82 @@ export const SAUDI_BOUNDS = {
 } as const;
 
 export const MAX_UPLOAD_MB = 10;
+
+/**
+ * Cancellation policy presets — fixed, partner-chosen per unit at add/edit time.
+ * No free-form percentage entry; these 3 tiers are the only options. Refund
+ * tiers are business-locked values, never computed. "After check-in / during
+ * the stay" is always fully locked across all 3 presets (enforced server-side;
+ * the frontend only surfaces the note).
+ */
+export interface CancellationPolicyTier {
+  /** Cancelling at/after this many days before check-in earns this tier's refund. */
+  minDaysBeforeCheckIn: number;
+  refundPercent: number;
+  labelAr: string;
+  labelEn: string;
+}
+
+export interface CancellationPolicyPreset {
+  name: CancellationPolicyName;
+  labelAr: string;
+  labelEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  /** Ordered most-generous tier first. */
+  tiers: CancellationPolicyTier[];
+}
+
+export const FLEXIBLE_POLICY: CancellationPolicyPreset = {
+  name: "flexible",
+  labelAr: "مرنة",
+  labelEn: "Flexible",
+  descriptionAr: "استرداد أعلى للضيف — مرونة أكبر في الإلغاء",
+  descriptionEn: "Higher guest refunds — more flexible cancellations",
+  tiers: [
+    { minDaysBeforeCheckIn: 7, refundPercent: 100, labelAr: "7 أيام أو أكثر", labelEn: "7+ days before" },
+    { minDaysBeforeCheckIn: 3, refundPercent: 75, labelAr: "3–7 أيام", labelEn: "3–7 days before" },
+    { minDaysBeforeCheckIn: 0, refundPercent: 50, labelAr: "أقل من 3 أيام", labelEn: "Less than 3 days before" },
+  ],
+};
+
+export const MODERATE_POLICY: CancellationPolicyPreset = {
+  name: "moderate",
+  labelAr: "متوسطة",
+  labelEn: "Moderate",
+  descriptionAr: "توازن بين مرونة الضيف وحماية عائدك",
+  descriptionEn: "A balance between guest flexibility and revenue protection",
+  tiers: [
+    { minDaysBeforeCheckIn: 7, refundPercent: 100, labelAr: "7 أيام أو أكثر", labelEn: "7+ days before" },
+    { minDaysBeforeCheckIn: 3, refundPercent: 50, labelAr: "3–7 أيام", labelEn: "3–7 days before" },
+    { minDaysBeforeCheckIn: 0, refundPercent: 25, labelAr: "أقل من 3 أيام", labelEn: "Less than 3 days before" },
+  ],
+};
+
+export const STRICT_POLICY: CancellationPolicyPreset = {
+  name: "strict",
+  labelAr: "صارمة",
+  labelEn: "Strict",
+  descriptionAr: "استرداد أقل للضيف — حماية أكبر لعائدك",
+  descriptionEn: "Lower guest refunds — stronger protection for your revenue",
+  tiers: [
+    { minDaysBeforeCheckIn: 7, refundPercent: 75, labelAr: "7 أيام أو أكثر", labelEn: "7+ days before" },
+    { minDaysBeforeCheckIn: 3, refundPercent: 25, labelAr: "3–7 أيام", labelEn: "3–7 days before" },
+    { minDaysBeforeCheckIn: 0, refundPercent: 0, labelAr: "أقل من 3 أيام", labelEn: "Less than 3 days before" },
+  ],
+};
+
+/** Ordered for display — flexible → moderate → strict. */
+export const CANCELLATION_POLICIES: CancellationPolicyPreset[] = [FLEXIBLE_POLICY, MODERATE_POLICY, STRICT_POLICY];
+
+export const POLICY_REGISTRY: Record<CancellationPolicyName, CancellationPolicyPreset> = {
+  flexible: FLEXIBLE_POLICY,
+  moderate: MODERATE_POLICY,
+  strict: STRICT_POLICY,
+};
+
+export const DEFAULT_CANCELLATION_POLICY: CancellationPolicyName = "moderate";
+
+export function isCancellationPolicyName(value: string): value is CancellationPolicyName {
+  return value === "flexible" || value === "moderate" || value === "strict";
+}

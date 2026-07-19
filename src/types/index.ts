@@ -16,6 +16,9 @@ export type DayStatus = "available" | "booked" | "blocked" | "external";
 
 export type PropertyType = "apartment" | "studio" | "villa";
 
+/** Per-unit, partner-chosen at creation/edit — never a platform-wide setting. */
+export type CancellationPolicyName = "flexible" | "moderate" | "strict";
+
 export type Amenity =
   | "wifi"
   | "ac"
@@ -68,8 +71,7 @@ export interface UnitCreateInput {
   name?: string;
   type?: PropertyType;
   pricePerNight?: number;
-  /** Per-unit, partner-editable (SAR). Defaults to 0 if omitted. */
-  cleaningFee?: number;
+  cancellationPolicy?: CancellationPolicyName;
   bedrooms?: number;
   bathrooms?: number;
   capacity?: number;
@@ -102,8 +104,8 @@ export interface Unit {
   type: PropertyType;
   status: UnitStatus;
   pricePerNight: number; // SAR
-  /** Per-unit, partner-editable (SAR). Optional — treat as 0 if unset. */
-  cleaningFee?: number;
+  /** One of the 3 fixed presets — always set (defaults to "moderate" on create). */
+  cancellationPolicy: CancellationPolicyName;
   bedrooms: number;
   bathrooms?: number; // v1.2 — optional
   capacity: number;
