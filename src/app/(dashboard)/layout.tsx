@@ -1,13 +1,22 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { useLocale } from "@/stores/locale-store";
+import { useSearch } from "@/stores/search-store";
 import { useEffect, useState } from "react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { dir, locale } = useLocale();
   const [navOpen, setNavOpen] = useState(false);
+  const pathname = usePathname();
+
+  // The header search box is page-scoped — leaving /units for /bookings (or
+  // anywhere else) shouldn't carry a stale query into a list it doesn't apply to.
+  useEffect(() => {
+    useSearch.getState().setQuery("");
+  }, [pathname]);
 
   // Keep <html> in sync with the store (handles refresh + toggle).
   useEffect(() => {

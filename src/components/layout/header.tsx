@@ -2,6 +2,7 @@
 
 import { LanguageToggle } from "./language-toggle";
 import { useLocale } from "@/stores/locale-store";
+import { useSearch } from "@/stores/search-store";
 import { useAsync } from "@/lib/use-async";
 import { api } from "@/lib/api/client";
 import { Bell, Menu, Plus, Search } from "lucide-react";
@@ -9,6 +10,7 @@ import Link from "next/link";
 
 export function Header({ onMenu }: { onMenu?: () => void }) {
   const { t } = useLocale();
+  const { query, setQuery } = useSearch();
   const partner = useAsync(() => api.getPartner());
   const notifications = useAsync(() => api.listNotifications());
 
@@ -29,6 +31,8 @@ export function Header({ onMenu }: { onMenu?: () => void }) {
       <div className="relative hidden flex-1 sm:block">
         <Search className="pointer-events-none absolute inset-y-0 my-auto ms-3 h-4 w-4 text-ink-faint" />
         <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
           className="w-full max-w-md rounded-full border border-line bg-white py-2 ps-9 pe-4 text-sm outline-none placeholder:text-ink-faint focus:border-brand"
           placeholder={t.overview.searchPlaceholder}
         />

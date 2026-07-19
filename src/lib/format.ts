@@ -35,15 +35,23 @@ export function formatDate(iso: string): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
-/** Short date for booking lists — "Jul 10, 2025" / Arabic month, Latin digits. */
+/**
+ * Short date for booking lists — "Jul 10, 2025" / Arabic month, Latin digits.
+ * Wrapped in Unicode isolate marks (U+2068/U+2069): the Arabic month name is
+ * an RTL run sitting between LTR digits, and without isolation the bidi
+ * algorithm reorders it against whatever sits next to it — e.g. two dates
+ * joined by "→" in one table cell come out visually scrambled. Isolating
+ * each formatted date makes it safe to concatenate/interpolate anywhere.
+ */
 export function formatDateShort(iso: string, locale: Locale = "ar"): string {
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar" : "en-US", {
+  const formatted = new Intl.DateTimeFormat(locale === "ar" ? "ar" : "en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
     calendar: "gregory",
     numberingSystem: "latn",
   }).format(new Date(iso));
+  return `⁨${formatted}⁩`; // FIRST STRONG ISOLATE ... POP DIRECTIONAL ISOLATE
 }
 
 /**

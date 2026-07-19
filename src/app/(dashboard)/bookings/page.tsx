@@ -4,6 +4,8 @@ import { useState } from "react";
 import { api } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
+import { useSearch } from "@/stores/search-store";
+import { matchesQuery } from "@/lib/search";
 import { Avatar } from "@/components/shared/avatar";
 import { BookingBadge } from "@/components/shared/status-badge";
 import { MoneyText } from "@/components/shared/typed-text";
@@ -29,9 +31,12 @@ export default function BookingsPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("all");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<Booking | null>(null);
+  const { query } = useSearch();
 
   const all = data ?? [];
-  const list = all.filter((b) => tab === "all" || b.status === tab);
+  const list = all
+    .filter((b) => tab === "all" || b.status === tab)
+    .filter((b) => matchesQuery(query, b.guestName, b.code, b.unitName));
   const count = (s: (typeof TABS)[number]) => (s === "all" ? all.length : all.filter((b) => b.status === s).length);
 
   return (
@@ -90,7 +95,11 @@ export default function BookingsPage() {
       ) : error ? (
         <ErrorState onRetry={reload} />
       ) : list.length === 0 ? (
-        <EmptyState title={t.bookings.emptyTitle} body={t.bookings.emptyBody} />
+        query.trim() ? (
+          <EmptyState title={t.wiz.noResults} />
+        ) : (
+          <EmptyState title={t.bookings.emptyTitle} body={t.bookings.emptyBody} />
+        )
       ) : view === "grid" ? (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((b) => (

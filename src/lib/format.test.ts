@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatCurrency, formatDate, formatPhone, computeFinancials } from "@/lib/format";
+import { formatCurrency, formatDate, formatDateShort, formatPhone, computeFinancials } from "@/lib/format";
 
 describe("formatCurrency", () => {
   it("renders SAR in Arabic, never AED", () => {
@@ -14,6 +14,17 @@ describe("formatCurrency", () => {
 describe("formatDate", () => {
   it("is Gregorian DD/MM/YYYY", () => {
     expect(formatDate("2026-07-13T00:00:00Z")).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+  });
+});
+
+describe("formatDateShort", () => {
+  it("isolates the Arabic month name with bidi control marks so two dates joined by an arrow don't scramble", () => {
+    const result = formatDateShort("2026-08-27T00:00:00Z", "ar");
+    expect(result.startsWith("⁨")).toBe(true);
+    expect(result.endsWith("⁩")).toBe(true);
+    expect(result).toContain("أغسطس");
+    expect(result).toContain("27");
+    expect(result).toContain("2026");
   });
 });
 

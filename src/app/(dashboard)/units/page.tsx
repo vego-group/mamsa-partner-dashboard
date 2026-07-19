@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
+import { useSearch } from "@/stores/search-store";
+import { matchesQuery } from "@/lib/search";
 import { Button, Modal } from "@/components/ui";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/shared/states";
 import { SAUDI_CITIES, POLICY_REGISTRY } from "@/lib/constants";
@@ -36,9 +38,12 @@ export default function UnitsPage() {
   const router = useRouter();
   const { data, loading, error, reload } = useAsync(() => api.listUnits());
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
+  const { query } = useSearch();
 
   const all = data ?? [];
-  const list = all.filter((u) => filter === "all" || u.status === filter);
+  const list = all
+    .filter((u) => filter === "all" || u.status === filter)
+    .filter((u) => matchesQuery(query, u.name, u.code));
   const approvedCount = all.filter((u) => u.status === "approved").length;
   const [modal, setModal] = useState<{ type: PropertyModalType; unit: Unit } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Unit | null>(null);
@@ -96,17 +101,21 @@ export default function UnitsPage() {
       ) : error ? (
         <ErrorState onRetry={reload} />
       ) : list.length === 0 ? (
-        <EmptyState
-          title={t.units.emptyTitle}
-          body={t.units.emptyBody}
-          action={
-            <Link href="/units/new">
-              <Button>
-                <Plus className="h-4 w-4" /> {t.units.newProperty}
-              </Button>
-            </Link>
-          }
-        />
+        query.trim() ? (
+          <EmptyState title={t.wiz.noResults} />
+        ) : (
+          <EmptyState
+            title={t.units.emptyTitle}
+            body={t.units.emptyBody}
+            action={
+              <Link href="/units/new">
+                <Button>
+                  <Plus className="h-4 w-4" /> {t.units.newProperty}
+                </Button>
+              </Link>
+            }
+          />
+        )
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((u) => (
