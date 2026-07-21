@@ -8,7 +8,7 @@ import { api, type OtpResult } from "@/lib/api/client";
 import { Button } from "@/components/ui";
 import { OTP, PHONE_PREFIX } from "@/lib/constants";
 import { LanguageToggle } from "@/components/layout/language-toggle";
-import { Home, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 type Step = "phone" | "otp" | "under_review" | "suspended";
 
@@ -114,8 +114,8 @@ export default function LoginPage() {
 
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
           <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-xl border border-white/20 bg-white/15 backdrop-blur">
-              <Home className="h-5 w-5 text-white" />
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/20 bg-white/15 backdrop-blur">
+              <Image src="/Mamsa_logo.png" alt={t.brand} fill sizes="48px" className="object-contain p-1.5" />
             </div>
             <div>
               <div className="text-lg font-bold">{t.brand}</div>

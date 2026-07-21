@@ -74,8 +74,9 @@ function PreviewModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
       )}
       {unit.description && <p className="mt-3 text-sm leading-relaxed text-ink-muted">{unit.description}</p>}
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-4 gap-3">
         <BigTile value={unit.bedrooms} label={p.bedrooms} />
+        <BigTile value={unit.beds ?? 0} label={p.beds} />
         <BigTile value={unit.bathrooms ?? 0} label={p.bathrooms} />
         <BigTile value={unit.capacity} label={p.maxGuests} />
       </div>

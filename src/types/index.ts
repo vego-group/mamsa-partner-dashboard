@@ -73,6 +73,7 @@ export interface UnitCreateInput {
   pricePerNight?: number;
   cancellationPolicy?: CancellationPolicyName;
   bedrooms?: number;
+  beds?: number;
   bathrooms?: number;
   capacity?: number;
   city?: string;
@@ -107,7 +108,9 @@ export interface Unit {
   /** One of the 3 fixed presets — always set (defaults to "moderate" on create). */
   cancellationPolicy: CancellationPolicyName;
   bedrooms: number;
-  bathrooms?: number; // v1.2 — optional
+  /** Optional on read: units created before these fields shipped have neither. */
+  beds?: number;
+  bathrooms?: number;
   capacity: number;
   /** v1.2 — avg guest rating from the user-website reviews. Absent if no reviews yet. */
   rating?: number; // 0–5

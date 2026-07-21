@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useLocale } from "@/stores/locale-store";
 import { useAsync } from "@/lib/use-async";
@@ -15,7 +16,6 @@ import {
   BarChart3,
   Bell,
   User,
-  Home,
   LogOut,
 } from "lucide-react";
 
@@ -63,8 +63,8 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
   const panel = (
     <div className="flex h-full flex-col rounded-3xl bg-brand-dark p-4 text-white">
       <div className="mb-6 flex items-center gap-3 px-1 pt-1">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/10">
-          <Home className="h-5 w-5" />
+        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-white/10">
+          <Image src="/Mamsa_logo.png" alt={t.brand} fill sizes="40px" className="object-contain p-1.5" />
         </div>
         <div>
           <div className="font-bold">{t.brand}</div>

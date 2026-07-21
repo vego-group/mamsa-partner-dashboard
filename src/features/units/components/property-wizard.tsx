@@ -119,6 +119,8 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
   const [type, setType] = useState<PropertyType | "">(existing?.type ?? "");
   const [price, setPrice] = useState(existing && existing.pricePerNight > 0 ? String(existing.pricePerNight) : "");
   const [bedrooms, setBedrooms] = useState(existing?.bedrooms ?? 1);
+  const [beds, setBeds] = useState(existing?.beds ?? 1);
+  const [bathrooms, setBathrooms] = useState(existing?.bathrooms ?? 1);
   const [guests, setGuests] = useState(existing?.capacity ?? 2);
   const [city, setCity] = useState(existing?.city ?? "");
   const [district, setDistrict] = useState(existing?.district ?? "");
@@ -201,6 +203,8 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
       pricePerNight: Number(price) || undefined,
       cancellationPolicy,
       bedrooms,
+      beds,
+      bathrooms,
       capacity: guests,
       city: city || undefined,
       district: district || undefined,
@@ -459,6 +463,8 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                 </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Stepper label={w.bedrooms} value={bedrooms} onChange={setBedrooms} min={0} />
+                  <Stepper label={w.beds} value={beds} onChange={setBeds} min={1} />
+                  <Stepper label={w.bathrooms} value={bathrooms} onChange={setBathrooms} min={1} />
                   <Stepper label={w.guests} value={guests} onChange={setGuests} min={1} />
                 </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -659,7 +665,7 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                 <ReviewRow label={w.typeLabel} value={type ? t.propertyType[type] : "—"} />
                 <ReviewRow label={w.priceLabel} value={w.sarPerNight(price || "0")} />
                 <ReviewRow label={w.city} value={cityLabel || "—"} />
-                <ReviewRow label={w.capacity} value={w.bedGuest(bedrooms, guests)} />
+                <ReviewRow label={w.capacity} value={w.capacitySummary(bedrooms, beds, bathrooms, guests)} />
                 <ReviewRow label={w.amenities} value={w.amenitiesCount(amenities.length)} />
                 <ReviewRow label={w.cancellationPolicy} value={policyLabel} />
               </ReviewCard>

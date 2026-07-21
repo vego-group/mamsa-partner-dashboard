@@ -28,6 +28,8 @@ export const unitSchema = z.object({
   type: z.enum(["apartment", "studio", "villa"]),
   pricePerNight: z.number().positive("السعر يجب أن يكون أكبر من صفر"),
   bedrooms: z.number().int().min(0),
+  beds: z.number().int().min(1),
+  bathrooms: z.number().int().min(1),
   capacity: z.number().int().min(1),
   city: z.string().min(1, "المدينة مطلوبة"),
   district: z.string().optional(),

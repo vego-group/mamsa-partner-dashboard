@@ -77,6 +77,8 @@ export default function UnitDetailPage() {
           <dl className="space-y-2 text-sm">
             <Row label="السعر / ليلة" value={<MoneyText amount={u.pricePerNight} />} />
             <Row label="غرف النوم" value={`${u.bedrooms}`} />
+            <Row label="الأسرّة" value={`${u.beds ?? 0}`} />
+            <Row label="دورات المياه" value={`${u.bathrooms ?? 0}`} />
             <Row label="السعة" value={`${u.capacity} أشخاص`} />
             <Row label="المدينة / الحي" value={`${u.city} · ${u.district}`} />
             <Row label="الوصول / المغادرة" value={`${u.checkIn} — ${u.checkOut}`} />

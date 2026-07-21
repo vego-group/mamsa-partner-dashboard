@@ -185,6 +185,7 @@ export const dict: Record<Locale, Dict> = {
       previewTitle: "معاينة الوحدة",
       reviews: (n: number) => `(${n} تقييم)`,
       bedrooms: "غرف النوم",
+      beds: "الأسرّة",
       bathrooms: "دورات المياه",
       maxGuests: "أقصى عدد ضيوف",
       nightlyRate: "سعر الليلة",
@@ -340,6 +341,8 @@ export const dict: Record<Locale, Dict> = {
       propertyTypeLabel: "نوع العقار",
       nightPrice: "سعر الليلة (ر.س)",
       bedrooms: "غرف النوم",
+      beds: "الأسرّة",
+      bathrooms: "دورات المياه",
       guests: "الضيوف",
       city: "المدينة",
       district: "الحي",
@@ -396,7 +399,8 @@ export const dict: Record<Locale, Dict> = {
       priceLabel: "السعر",
       sarPerNight: (p: string) => `${p} ر.س / ليلة`,
       capacity: "السعة",
-      bedGuest: (b: number, g: number) => `${b} غرفة · ${g} ضيوف`,
+      capacitySummary: (rooms: number, beds: number, baths: number, guests: number) =>
+        `${rooms} غرفة · ${beds} سرير · ${baths} دورة مياه · ${guests} ضيوف`,
       amenitiesCount: (n: number) => `${n} مختارة`,
       address: "العنوان",
       coordinates: "الإحداثيات",
@@ -642,6 +646,7 @@ export const dict: Record<Locale, Dict> = {
       previewTitle: "Property Preview",
       reviews: (n: number) => `(${n} reviews)`,
       bedrooms: "Bedrooms",
+      beds: "Beds",
       bathrooms: "Bathrooms",
       maxGuests: "Max Guests",
       nightlyRate: "Nightly Rate",
@@ -797,6 +802,8 @@ export const dict: Record<Locale, Dict> = {
       propertyTypeLabel: "Property Type",
       nightPrice: "Night Price (SAR)",
       bedrooms: "Bedrooms",
+      beds: "Beds",
+      bathrooms: "Bathrooms",
       guests: "Guests",
       city: "City",
       district: "District / Neighbourhood",
@@ -853,7 +860,8 @@ export const dict: Record<Locale, Dict> = {
       priceLabel: "Price",
       sarPerNight: (p: string) => `${p} SAR / night`,
       capacity: "Capacity",
-      bedGuest: (b: number, g: number) => `${b} bed · ${g} guests`,
+      capacitySummary: (rooms: number, beds: number, baths: number, guests: number) =>
+        `${rooms} bedrooms · ${beds} beds · ${baths} baths · ${guests} guests`,
       amenitiesCount: (n: number) => `${n} selected`,
       address: "Address",
       coordinates: "Coordinates",
@@ -1092,6 +1100,7 @@ export type Dict = {
     previewTitle: string;
     reviews: (n: number) => string;
     bedrooms: string;
+    beds: string;
     bathrooms: string;
     maxGuests: string;
     nightlyRate: string;
@@ -1239,6 +1248,8 @@ export type Dict = {
     propertyTypeLabel: string;
     nightPrice: string;
     bedrooms: string;
+    beds: string;
+    bathrooms: string;
     guests: string;
     city: string;
     district: string;
@@ -1292,7 +1303,7 @@ export type Dict = {
     priceLabel: string;
     sarPerNight: (p: string) => string;
     capacity: string;
-    bedGuest: (b: number, g: number) => string;
+    capacitySummary: (rooms: number, beds: number, baths: number, guests: number) => string;
     amenitiesCount: (n: number) => string;
     address: string;
     coordinates: string;
