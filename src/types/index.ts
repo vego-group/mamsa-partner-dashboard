@@ -108,9 +108,13 @@ export interface Unit {
   /** One of the 3 fixed presets — always set (defaults to "moderate" on create). */
   cancellationPolicy: CancellationPolicyName;
   bedrooms: number;
-  /** Optional on read: units created before these fields shipped have neither. */
-  beds?: number;
-  bathrooms?: number;
+  /**
+   * Nullable by design: the columns stay empty on a draft until the partner
+   * fills them in — submit validation is what guarantees a real number, so
+   * approved/public units always have both.
+   */
+  beds?: number | null;
+  bathrooms?: number | null;
   capacity: number;
   /** v1.2 — avg guest rating from the user-website reviews. Absent if no reviews yet. */
   rating?: number; // 0–5

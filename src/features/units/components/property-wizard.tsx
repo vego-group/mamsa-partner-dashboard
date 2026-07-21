@@ -463,8 +463,9 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                 </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Stepper label={w.bedrooms} value={bedrooms} onChange={setBedrooms} min={0} />
-                  <Stepper label={w.beds} value={beds} onChange={setBeds} min={1} />
-                  <Stepper label={w.bathrooms} value={bathrooms} onChange={setBathrooms} min={1} />
+                  {/* Ranges mirror the backend's submit validation (beds 1–20, bathrooms 1–10) */}
+                  <Stepper label={w.beds} value={beds} onChange={setBeds} min={1} max={20} />
+                  <Stepper label={w.bathrooms} value={bathrooms} onChange={setBathrooms} min={1} max={10} />
                   <Stepper label={w.guests} value={guests} onChange={setGuests} min={1} />
                 </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -946,7 +947,7 @@ function PolicyCard({
   );
 }
 
-function Stepper({ label, value, onChange, min }: { label: string; value: number; onChange: (v: number) => void; min: number }) {
+function Stepper({ label, value, onChange, min, max }: { label: string; value: number; onChange: (v: number) => void; min: number; max?: number }) {
   const btn = "grid h-10 w-10 place-items-center rounded-full border border-line text-ink transition hover:bg-cream disabled:opacity-40";
   return (
     <div>
@@ -956,7 +957,11 @@ function Stepper({ label, value, onChange, min }: { label: string; value: number
           <Minus className="h-4 w-4" />
         </button>
         <span className="w-8 text-center text-lg font-bold tabular-nums text-ink">{value}</span>
-        <button onClick={() => onChange(value + 1)} className={btn}>
+        <button
+          onClick={() => onChange(max == null ? value + 1 : Math.min(max, value + 1))}
+          disabled={max != null && value >= max}
+          className={btn}
+        >
           <Plus className="h-4 w-4" />
         </button>
       </div>
