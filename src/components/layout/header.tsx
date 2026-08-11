@@ -3,6 +3,7 @@
 import { LanguageToggle } from "./language-toggle";
 import { useLocale } from "@/stores/locale-store";
 import { useSearch } from "@/stores/search-store";
+import { useNotifications } from "@/stores/notifications-store";
 import { useAsync } from "@/lib/use-async";
 import { api } from "@/lib/api/client";
 import { Bell, Menu, Plus, Search } from "lucide-react";
@@ -12,11 +13,11 @@ export function Header({ onMenu }: { onMenu?: () => void }) {
   const { t } = useLocale();
   const { query, setQuery } = useSearch();
   const partner = useAsync(() => api.getPartner());
-  const notifications = useAsync(() => api.listNotifications());
+  // Polled by the dashboard layout — a new booking reaches the bell without a reload.
+  const unread = useNotifications((s) => s.unread);
 
   const name = partner.data?.name ?? t.brand;
   const initials = name.split(" ").slice(0, 2).map((w) => w[0]).join("");
-  const unread = (notifications.data ?? []).some((n) => !n.read);
 
   return (
     <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-cream/80 px-4 py-3 backdrop-blur sm:px-6">
@@ -50,10 +51,14 @@ export function Header({ onMenu }: { onMenu?: () => void }) {
         <Link
           href="/notifications"
           className="relative rounded-full border border-line bg-white p-2 text-ink hover:bg-cream"
-          aria-label={t.nav.notifications}
+          aria-label={unread > 0 ? `${t.nav.notifications} (${unread})` : t.nav.notifications}
         >
           <Bell className="h-4 w-4" />
-          {unread && <span className="absolute end-1.5 top-1.5 h-2 w-2 rounded-full bg-status-rejected" />}
+          {unread > 0 && (
+            <span className="absolute -end-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-status-rejected px-1 text-[10px] font-bold leading-none text-white tabular-nums">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )}
         </Link>
         <div className="grid h-9 w-9 place-items-center rounded-full bg-brand text-sm font-bold text-white">
           {initials}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useLocale } from "@/stores/locale-store";
+import { useNotifications } from "@/stores/notifications-store";
 import { useAsync } from "@/lib/use-async";
 import { api } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -34,7 +35,8 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
   const { t } = useLocale();
   const partner = useAsync(() => api.getPartner());
   const bookings = useAsync(() => api.listBookings());
-  const notifications = useAsync(() => api.listNotifications());
+  // Polled by the dashboard layout (GET /notifications/unread-count).
+  const unreadNotifications = useNotifications((s) => s.unread);
   const [signingOut, setSigningOut] = useState(false);
 
   /**
@@ -54,7 +56,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
 
   const badges: Partial<Record<(typeof items)[number]["key"], number>> = {
     bookings: (bookings.data ?? []).filter((b) => b.status !== "cancelled").length,
-    notifications: (notifications.data ?? []).filter((n) => !n.read).length,
+    notifications: unreadNotifications,
   };
 
   const name = partner.data?.name ?? t.brand;

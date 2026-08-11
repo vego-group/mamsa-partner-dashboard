@@ -42,6 +42,9 @@ import {
   updateMockUnit,
   submitMockUnit,
   deleteMockUnit,
+  markMockNotificationRead,
+  markAllMockNotificationsRead,
+  mockUnreadCount,
 } from "@/mocks/data";
 import { OTP } from "@/lib/constants";
 
@@ -549,9 +552,26 @@ export const api = {
     return httpList(`/notifications?${LIST_ALL_QS}`);
   },
 
+  /**
+   * §8 — the cheap, pollable badge count (`{ count }`) behind the header bell
+   * and the sidebar badge. Both used to pull the whole feed just to count
+   * unread rows; this is one small request instead, so it can be polled while
+   * the partner works (a new booking shows up without a reload).
+   */
+  async getUnreadCount(): Promise<number> {
+    if (USE_MOCK) {
+      await delay(150);
+      return mockUnreadCount();
+    }
+    // Contract says `{ count }`; tolerate a bare number defensively.
+    const json = await http<{ count?: number } | number>("/notifications/unread-count");
+    return typeof json === "number" ? json : json.count ?? 0;
+  },
+
   async markAllRead(): Promise<void> {
     if (USE_MOCK) {
       await delay();
+      markAllMockNotificationsRead();
       return;
     }
     await http("/notifications/read-all", { method: "POST" });
@@ -561,6 +581,7 @@ export const api = {
   async markRead(id: string): Promise<void> {
     if (USE_MOCK) {
       await delay();
+      markMockNotificationRead(id);
       return;
     }
     await http(`/notifications/${id}/read`, { method: "POST" });

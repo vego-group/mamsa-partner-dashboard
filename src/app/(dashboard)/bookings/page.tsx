@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
 import { useSearch } from "@/stores/search-store";
 import { matchesQuery } from "@/lib/search";
+import { BOOKING_PARAM } from "@/lib/notifications";
 import { Avatar } from "@/components/shared/avatar";
 import { BookingBadge } from "@/components/shared/status-badge";
 import { MoneyText } from "@/components/shared/typed-text";
@@ -25,13 +27,35 @@ import {
 
 const TABS: (BookingStatus | "all")[] = ["all", "confirmed", "completed", "cancelled"];
 
+/** `useSearchParams` needs a Suspense boundary to keep this page prerenderable. */
 export default function BookingsPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton />}>
+      <BookingsView />
+    </Suspense>
+  );
+}
+
+function BookingsView() {
   const { t, locale } = useLocale();
+  const router = useRouter();
   const { data, loading, error, reload } = useAsync(() => api.listBookings());
   const [tab, setTab] = useState<(typeof TABS)[number]>("all");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<Booking | null>(null);
   const { query } = useSearch();
+
+  /**
+   * `new_booking` notifications deep-link to a single booking. Detail is a modal
+   * rather than a route, so the id arrives as `?booking=<id>` and opens it here
+   * once the list has loaded (see lib/notifications).
+   */
+  const deepLinkId = useSearchParams().get(BOOKING_PARAM);
+  useEffect(() => {
+    if (!deepLinkId || !data) return;
+    const match = data.find((b) => b.id === deepLinkId || b.code === deepLinkId);
+    if (match) setSelected(match);
+  }, [deepLinkId, data]);
 
   const all = data ?? [];
   const list = all
@@ -113,7 +137,11 @@ export default function BookingsPage() {
       {selected && (
         <BookingDetail
           booking={selected}
-          onClose={() => setSelected(null)}
+          onClose={() => {
+            setSelected(null);
+            // Drop the deep-link param so a refresh doesn't reopen the modal.
+            if (deepLinkId) router.replace("/bookings", { scroll: false });
+          }}
           onCancelled={(updated) => {
             setSelected(updated);
             reload();

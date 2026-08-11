@@ -267,12 +267,32 @@ const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString
  * (locked rules: instant full payment via Moyasar, no partner approval step).
  */
 export const mockNotifications: AppNotification[] = [
-  { id: "n_1", type: "new_booking", title: "حجز جديد", body: "حجز أحمد الراشدي وحدة استوديو مرسى العليا لمدة 5 ليالٍ (BK-2401).", read: false, createdAt: hoursAgo(2), href: "/bookings" },
+  { id: "n_1", type: "new_booking", title: "حجز جديد", body: "حجز أحمد الراشدي وحدة استوديو مرسى العليا لمدة 5 ليالٍ (BK-2401).", read: false, createdAt: hoursAgo(2), href: "/bookings/b_1" },
   { id: "n_2", type: "unit_rejected", title: "تم رفض وحدتك", body: "شقة النرجس المودرن — السبب: التصريح السياحي منتهي الصلاحية.", read: false, createdAt: hoursAgo(5), href: "/units/u_4" },
   { id: "n_3", type: "sync_failed", title: "فشلت مزامنة تقويم خارجي", body: "تعذّرت مزامنة Vrbo لوحدة فيلا الروضة — الدمام.", read: true, createdAt: hoursAgo(27), href: "/calendar" },
   { id: "n_4", type: "host_cancellation", title: "تم تسجيل إلغاء مضيف", body: "أُلغي الحجز BK-2404 واستُرد كامل المبلغ (2,160 ر.س) للضيف.", read: true, createdAt: hoursAgo(31), href: "/bookings" },
   { id: "n_5", type: "unit_approved", title: "تمت الموافقة على وحدتك", body: "شقة إطلالة البحر — جدة أصبحت معتمدة وظاهرة في الموقع.", read: true, createdAt: hoursAgo(24 * 6), href: "/units/u_2" },
 ];
+
+/**
+ * The header/sidebar badge polls `GET /notifications/unread-count`, so mock mode
+ * has to keep read state — otherwise "تحديد الكل كمقروء" is undone by the next
+ * poll. Mutates the seed in place, same as the other mock writers.
+ */
+export function markMockNotificationRead(id: string): void {
+  const n = mockNotifications.find((x) => x.id === id);
+  if (n) n.read = true;
+}
+
+export function markAllMockNotificationsRead(): void {
+  mockNotifications.forEach((n) => {
+    n.read = true;
+  });
+}
+
+export function mockUnreadCount(): number {
+  return mockNotifications.filter((n) => !n.read).length;
+}
 
 /** Last-12-months keys ending this month: ["2025-08", …, "2026-07"]. */
 function last12Months(): string[] {

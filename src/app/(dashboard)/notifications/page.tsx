@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
+import { useNotifications } from "@/stores/notifications-store";
+import { normalizeNotificationHref } from "@/lib/notifications";
 import { ErrorState, LoadingSkeleton } from "@/components/shared/states";
 import { formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -62,29 +64,6 @@ function categoryOf(type: AppNotification["type"]): UiCategory | undefined {
 type Group = "today" | "yesterday" | "earlier";
 const GROUPS: Group[] = ["today", "yesterday", "earlier"];
 
-/**
- * Notification `href` comes from the backend. This dashboard is served at the
- * domain root (`partner.mamsaa.com/units/...`), but the backend prefixes hrefs
- * with `/partner` (`/partner/units/19/edit`) — which matches no route here and
- * hard-404s. Normalize before navigating: drop an absolute origin, strip a
- * leading `/partner`, and send booking deep-links (rendered as a modal, not a
- * page) to the bookings list. Reported to backend to align the hrefs too.
- */
-function normalizeHref(href: string): string {
-  let path = href || "/overview";
-  if (/^https?:\/\//i.test(path)) {
-    try {
-      path = new URL(path).pathname;
-    } catch {
-      /* keep as-is */
-    }
-  }
-  path = path.replace(/^\/partner(?=\/|$)/, ""); // strip the /partner prefix
-  path = path.replace(/^\/bookings\/[^/]+$/, "/bookings"); // detail is a modal, not a route
-  path = path.replace(/^\/dashboard(?=\/|$)/, "/overview"); // backend "dashboard" home = our /overview
-  return path || "/overview";
-}
-
 function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
@@ -118,6 +97,14 @@ export default function NotificationsPage() {
 
   const all = data ?? [];
   const unread = all.filter((x) => !x.read).length;
+
+  // The feed is the fuller truth than the polled count — keep the bell/sidebar
+  // badge in step with it, including the optimistic read/read-all updates below.
+  const setUnread = useNotifications((s) => s.setUnread);
+  useEffect(() => {
+    if (data) setUnread(unread);
+  }, [data, unread, setUnread]);
+
   const catCount = (c: (typeof CATS)[number]) =>
     c === "all" ? all.length : all.filter((x) => categoryOf(x.type) === c).length;
   const shown = all.filter((x) => tab === "all" || categoryOf(x.type) === tab);
@@ -210,7 +197,7 @@ export default function NotificationsPage() {
                           setData(all.map((x) => (x.id === item.id ? { ...x, read: true } : x)));
                           api.markRead(item.id).catch(() => {});
                         }
-                        router.push(normalizeHref(item.href));
+                        router.push(normalizeNotificationHref(item.href));
                       }}
                     />
                   ))}
