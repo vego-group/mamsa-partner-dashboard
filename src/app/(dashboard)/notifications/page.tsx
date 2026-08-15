@@ -20,6 +20,7 @@ import {
   RefreshCw,
   AlertCircle,
   Bell,
+  Wallet,
 } from "lucide-react";
 
 /**
@@ -27,8 +28,8 @@ import {
  * Grouping (today/yesterday/earlier), time labels and the category rollup
  * below are frontend presentation derived from `type` + `createdAt`.
  */
-type UiCategory = "booking" | "units" | "alert";
-const CATS: (UiCategory | "all")[] = ["all", "booking", "units", "alert"];
+type UiCategory = "booking" | "units" | "alert" | "payout";
+const CATS: (UiCategory | "all")[] = ["all", "booking", "units", "payout", "alert"];
 
 const typeCategory: Record<NotificationType, UiCategory> = {
   new_booking: "booking",
@@ -36,6 +37,7 @@ const typeCategory: Record<NotificationType, UiCategory> = {
   unit_rejected: "units",
   sync_failed: "alert",
   host_cancellation: "alert",
+  payout: "payout",
 };
 
 const typeStyle: Record<NotificationType, { icon: typeof Bell; tone: string }> = {
@@ -44,6 +46,7 @@ const typeStyle: Record<NotificationType, { icon: typeof Bell; tone: string }> =
   unit_rejected: { icon: XCircle, tone: "bg-status-rejected/10 text-status-rejected" },
   sync_failed: { icon: RefreshCw, tone: "bg-status-pending/15 text-status-pending" },
   host_cancellation: { icon: AlertCircle, tone: "bg-status-rejected/10 text-status-rejected" },
+  payout: { icon: Wallet, tone: "bg-status-approved/15 text-status-approved" },
 };
 
 /**
@@ -123,6 +126,7 @@ export default function NotificationsPage() {
     all: t.common.all,
     booking: n.catBooking,
     units: n.catUnits,
+    payout: n.catPayout,
     alert: n.catAlerts,
   };
 

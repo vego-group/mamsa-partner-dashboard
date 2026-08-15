@@ -9,7 +9,8 @@ import { useLocale } from "@/stores/locale-store";
 import { POLICY_REGISTRY } from "@/lib/constants";
 import { Card, Button } from "@/components/ui";
 import { UnitBadge } from "@/components/shared/status-badge";
-import { MoneyText, DateText } from "@/components/shared/typed-text";
+import { DateText } from "@/components/shared/typed-text";
+import { PriceBreakdown } from "@/features/units/components/price-breakdown";
 import { LoadingSkeleton, ErrorState } from "@/components/shared/states";
 import { AlertTriangle, CalendarDays, ExternalLink, Link2, RefreshCw } from "lucide-react";
 
@@ -75,7 +76,6 @@ export default function UnitDetailPage() {
         <Card className="p-5">
           <h3 className="mb-3 font-semibold text-ink">البيانات</h3>
           <dl className="space-y-2 text-sm">
-            <Row label="السعر / ليلة" value={<MoneyText amount={u.pricePerNight} />} />
             <Row label="غرف النوم" value={`${u.bedrooms}`} />
             <Row label="الأسرّة" value={`${u.beds ?? 0}`} />
             <Row label="دورات المياه" value={`${u.bathrooms ?? 0}`} />
@@ -83,6 +83,8 @@ export default function UnitDetailPage() {
             <Row label="المدينة / الحي" value={`${u.city} · ${u.district}`} />
             <Row label="الوصول / المغادرة" value={`${u.checkIn} — ${u.checkOut}`} />
           </dl>
+          {/* Same VAT-inclusive breakdown the partner saw when setting the price. */}
+          <PriceBreakdown gross={u.pricePerNight} className="mt-4" />
         </Card>
         <Card className="p-5">
           <h3 className="mb-3 font-semibold text-ink">الترخيص</h3>

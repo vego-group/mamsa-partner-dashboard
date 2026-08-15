@@ -17,6 +17,7 @@ export const dict: Record<Locale, Dict> = {
       calendar: "التقويم",
       bookings: "الحجوزات",
       reports: "التقارير",
+      wallet: "المحفظة",
       account: "الحساب",
       notifications: "الإشعارات",
       logout: "تسجيل خروج",
@@ -110,8 +111,11 @@ export const dict: Record<Locale, Dict> = {
       subtitle: "رؤى مالية وأداء",
       exportPdf: "تصدير PDF",
       exportCsv: "تصدير CSV",
+      grossRevenue: "إجمالي الإيرادات (شامل الضريبة)",
+      netRevenue: "الإيراد غير شامل الضريبة",
+      vat: "ضريبة القيمة المضافة (15%)",
       commission: "عمولة مَمسَى (2%)",
-      netProfit: "صافي الربح",
+      netProfit: "صافي الربح (بعد العمولة)",
       revenueTrend: "اتجاه الإيرادات",
       monthlyBreakdown: "التفصيل الشهري",
       propertyPerformance: "أداء الوحدات",
@@ -179,7 +183,110 @@ export const dict: Record<Locale, Dict> = {
       saveCompanyDocs: "حفظ بيانات الشركة",
       companyDocsSaved: "تم حفظ البيانات",
       crInvalid: "رقم السجل التجاري يجب أن يتكون من 10 أرقام",
+      payoutAccountTitle: "حساب استلام الأرباح",
+      payoutAccountSubtitle: "الحساب البنكي الذي تُحوَّل إليه مستحقاتك.",
+      accountHolderLabel: "اسم صاحب الحساب",
+      savePayoutAccount: "حفظ الحساب البنكي",
+      payoutAccountSaved: "تم حفظ الحساب البنكي",
       ibanInvalid: "رقم الآيبان غير صحيح (يبدأ بـ SA ثم 22 رقمًا)",
+      ibanMovedNote: "رقم الآيبان انتقل إلى قسم «بيانات الحساب البنكي» بالأعلى.",
+    },
+    bank: {
+      title: "بيانات الحساب البنكي",
+      subtitle: "الحساب الذي تُحوَّل إليه أرباحك.",
+      iban: "رقم الآيبان",
+      accountHolder: "اسم صاحب الحساب",
+      bankName: "اسم البنك",
+      bankNamePending: "—",
+      verified: "حسابك البنكي موثّق",
+      pending: "حسابك البنكي قيد التوثيق من إدارة مَمسَى",
+      missing: "أضف حسابك البنكي لاستلام أرباحك",
+      rejected: "تم رفض توثيق الحساب",
+      rejectedFix: "يرجى تصحيح البيانات وإعادة الإرسال.",
+      changeWarning: "تغيير رقم الآيبان سيتطلب إعادة توثيق الحساب، ولن تُنفَّذ أي حوالة حتى يتم التوثيق.",
+      changeTitle: "تأكيد تغيير الآيبان",
+      confirmChange: "تأكيد التغيير",
+      invalidIban: "رقم الآيبان غير صحيح",
+      holderRequired: "اسم صاحب الحساب مطلوب",
+      save: "حفظ الحساب البنكي",
+      saved: "تم حفظ الحساب البنكي",
+      ibanPlaceholder: "SA0000000000000000000000",
+    },
+    wallet: {
+      title: "المحفظة",
+      subtitle: "أرباحك وحركات رصيدك.",
+      available: "الرصيد المستحق",
+      pending: "الرصيد المعلّق",
+      lifetimeEarnings: "إجمالي الأرباح",
+      lifetimePaidOut: "إجمالي المحوّل",
+      ledger: "سجل الحركات",
+      balanceAfter: "الرصيد",
+      date: "التاريخ",
+      type: "النوع",
+      description: "الوصف",
+      amount: "المبلغ",
+      noTransactions: "لا توجد حركات بعد",
+      loadMore: "تحميل المزيد",
+      cycleNote: "نُحوّل رصيدك المستحق مرة واحدة في شهر ميلادي إذا بلغ 2,000 ر.س أو أكثر.",
+      pendingNote: "أرباح حجوزات لم تكتمل بعد — تنتقل للرصيد المستحق بعد انتهاء إقامة الضيف.",
+      readyToTransfer: (amount: string) => `رصيدك ${amount} جاهز للتحويل خلال هذا الشهر`,
+      paidThisMonth: (date: string) => `تم تحويل مستحقاتك لهذا الشهر بتاريخ ${date}`,
+      needMore: (amount: string) => `تحتاج ${amount} إضافية للوصول للحد الأدنى. رصيدك يُرحّل تلقائيًا للشهر التالي.`,
+      bankMissing: "أضف حسابك البنكي لاستلام أرباحك",
+      bankMissingCta: "إضافة الحساب البنكي",
+      bankUnverified: "حسابك البنكي قيد التوثيق. سيتم التحويل بعد اكتمال التوثيق.",
+      suspended: "حسابك موقوف حاليًا. تواصل مع الدعم.",
+      negativeBalance: "رصيدك الحالي سالب وسيتم تسويته من أرباحك القادمة.",
+      progressToMin: (current: string, min: string) => `${current} من ${min}`,
+      type_earning: "حصة حجز",
+      type_payout: "حوالة صادرة",
+      type_refund_reversal: "استرجاع مبلغ مسترد",
+      type_adjustment: "تعديل من الإدارة",
+      viewPayouts: "عرض الحوالات",
+    },
+    payouts: {
+      title: "الحوالات",
+      subtitle: "الحوالات البنكية التي نفّذناها لك.",
+      reference: "المرجع",
+      period: "الفترة",
+      amount: "المبلغ",
+      bookingsCount: "عدد الحجوزات",
+      status: "الحالة",
+      paidAt: "تاريخ التحويل",
+      bankReference: "المرجع البنكي",
+      bankAccount: "الحساب البنكي",
+      statusPaid: "تم التحويل",
+      statusReversed: "معكوسة",
+      reversalReason: "سبب العكس",
+      reversedAt: "تاريخ العكس",
+      detailTitle: (ref: string) => `تفاصيل الحوالة ${ref}`,
+      includedBookings: "الحجوزات المشمولة",
+      colBooking: "الحجز",
+      colUnit: "الوحدة",
+      colCheckOut: "المغادرة",
+      colGross: "الإجمالي",
+      colNetBase: "الأساس قبل الضريبة",
+      colCommission: "العمولة",
+      colShare: "حصتك",
+      total: "الإجمالي",
+      empty: "لا توجد حوالات بعد",
+      emptyBody: "ستظهر هنا كل حوالة نُنفّذها لحسابك البنكي.",
+      note: "ملاحظة",
+    },
+    pricing: {
+      priceInclVat: "السعر لليلة (شامل ضريبة القيمة المضافة)",
+      priceHelper:
+        "هذا هو المبلغ الذي يدفعه الضيف. تُحتسب ضريبة القيمة المضافة (15%) وعمولة المنصة (2%) من هذا المبلغ.",
+      guestPays: "الضيف يدفع",
+      netEarning: "صافي ربحك",
+      netEarningNote: "يُضاف إلى محفظتك بعد انتهاء إقامة الضيف",
+      showDeductions: "تفاصيل الخصومات",
+      netBase: "الأساس قبل الضريبة",
+      vat: "ضريبة القيمة المضافة (15%)",
+      commission: "عمولة المنصة (2%)",
+      vatTooltip: "تُورَّد كاملةً لهيئة الزكاة والضريبة والجمارك نيابةً عنك",
+      commissionTooltip: "مقابل خدمات المنصة والتسويق والدفع الإلكتروني",
+      placeholder: "أدخل سعر الليلة لعرض التفاصيل",
     },
     pm: {
       previewTitle: "معاينة الوحدة",
@@ -214,6 +321,7 @@ export const dict: Record<Locale, Dict> = {
       cardUnits: "الوحدات",
       cardAlerts: "التنبيهات",
       catBooking: "الحجوزات",
+      catPayout: "الحوالات",
       catUnits: "الوحدات",
       catAlerts: "التنبيهات",
       groupToday: "اليوم",
@@ -239,7 +347,9 @@ export const dict: Record<Locale, Dict> = {
       bookingId: "رقم الحجز",
       duration: "المدة",
       total: "الإجمالي",
+      yourShare: "حصتك",
       paid: "مدفوع",
+      awaitingPayment: "لم يُدفع بعد",
       refunded: "مسترد",
       hostCancellation: "إلغاء مضيف",
       notes: "ملاحظات",
@@ -425,6 +535,8 @@ export const dict: Record<Locale, Dict> = {
       rejected: "مرفوضة",
     },
     bookingStatus: {
+      // Matches the server's `status_label` for this state.
+      pending_payment: "بانتظار الدفع",
       confirmed: "مؤكد",
       completed: "مكتمل",
       cancelled: "ملغي",
@@ -480,6 +592,7 @@ export const dict: Record<Locale, Dict> = {
       calendar: "Calendar",
       bookings: "Bookings",
       reports: "Reports",
+      wallet: "Wallet",
       account: "Account",
       notifications: "Notifications",
       logout: "Sign out",
@@ -571,8 +684,11 @@ export const dict: Record<Locale, Dict> = {
       subtitle: "Financial and performance insights",
       exportPdf: "Export PDF",
       exportCsv: "Export CSV",
+      grossRevenue: "Total Revenue (VAT incl.)",
+      netRevenue: "Revenue excl. VAT",
+      vat: "VAT (15%)",
       commission: "Mamsa Commission (2%)",
-      netProfit: "Net Profit",
+      netProfit: "Net Profit (after commission)",
       revenueTrend: "Revenue Trend",
       monthlyBreakdown: "Monthly breakdown",
       propertyPerformance: "Property Performance",
@@ -640,7 +756,110 @@ export const dict: Record<Locale, Dict> = {
       saveCompanyDocs: "Save Company Details",
       companyDocsSaved: "Details saved",
       crInvalid: "Commercial Registration must be 10 digits",
+      payoutAccountTitle: "Payout Account",
+      payoutAccountSubtitle: "The bank account your earnings are transferred to.",
+      accountHolderLabel: "Account Holder Name",
+      savePayoutAccount: "Save Bank Account",
+      payoutAccountSaved: "Bank account saved",
       ibanInvalid: "Invalid IBAN (must start with SA, then 22 digits)",
+      ibanMovedNote: "The IBAN has moved to the “Bank Account Details” section above.",
+    },
+    bank: {
+      title: "Bank Account Details",
+      subtitle: "The account your earnings are transferred to.",
+      iban: "IBAN",
+      accountHolder: "Account Holder Name",
+      bankName: "Bank Name",
+      bankNamePending: "—",
+      verified: "Your bank account is verified",
+      pending: "Your bank account is being verified by Mamsa",
+      missing: "Add your bank account to receive your earnings",
+      rejected: "Bank account verification was rejected",
+      rejectedFix: "Please correct the details and resubmit.",
+      changeWarning: "Changing the IBAN will require the account to be verified again, and no transfer will be executed until it is.",
+      changeTitle: "Confirm IBAN Change",
+      confirmChange: "Confirm Change",
+      invalidIban: "Invalid IBAN",
+      holderRequired: "Account holder name is required",
+      save: "Save Bank Account",
+      saved: "Bank account saved",
+      ibanPlaceholder: "SA0000000000000000000000",
+    },
+    wallet: {
+      title: "Wallet",
+      subtitle: "Your earnings and balance activity.",
+      available: "Available Balance",
+      pending: "Pending Balance",
+      lifetimeEarnings: "Lifetime Earnings",
+      lifetimePaidOut: "Lifetime Paid Out",
+      ledger: "Transaction History",
+      balanceAfter: "Balance",
+      date: "Date",
+      type: "Type",
+      description: "Description",
+      amount: "Amount",
+      noTransactions: "No transactions yet",
+      loadMore: "Load more",
+      cycleNote: "We transfer your available balance once per Gregorian month if it reaches SAR 2,000 or more.",
+      pendingNote: "Earnings from bookings that haven't completed yet — they move to your available balance once the guest's stay ends.",
+      readyToTransfer: (amount: string) => `Your balance of ${amount} is ready to transfer this month`,
+      paidThisMonth: (date: string) => `Your earnings for this month were transferred on ${date}`,
+      needMore: (amount: string) => `You need ${amount} more to reach the minimum. Your balance carries over automatically to next month.`,
+      bankMissing: "Add your bank account to receive your earnings",
+      bankMissingCta: "Add bank account",
+      bankUnverified: "Your bank account is being verified. Transfers begin once verification completes.",
+      suspended: "Your account is currently suspended. Please contact support.",
+      negativeBalance: "Your balance is currently negative and will be settled from your upcoming earnings.",
+      progressToMin: (current: string, min: string) => `${current} of ${min}`,
+      type_earning: "Booking share",
+      type_payout: "Outgoing transfer",
+      type_refund_reversal: "Refund reversal",
+      type_adjustment: "Admin adjustment",
+      viewPayouts: "View payouts",
+    },
+    payouts: {
+      title: "Payouts",
+      subtitle: "The bank transfers we've executed for you.",
+      reference: "Reference",
+      period: "Period",
+      amount: "Amount",
+      bookingsCount: "Bookings",
+      status: "Status",
+      paidAt: "Transfer Date",
+      bankReference: "Bank Reference",
+      bankAccount: "Bank Account",
+      statusPaid: "Transferred",
+      statusReversed: "Reversed",
+      reversalReason: "Reversal reason",
+      reversedAt: "Reversed on",
+      detailTitle: (ref: string) => `Payout ${ref}`,
+      includedBookings: "Bookings included",
+      colBooking: "Booking",
+      colUnit: "Property",
+      colCheckOut: "Check-out",
+      colGross: "Gross",
+      colNetBase: "Base excl. VAT",
+      colCommission: "Commission",
+      colShare: "Your share",
+      total: "Total",
+      empty: "No payouts yet",
+      emptyBody: "Every transfer we execute to your bank account will appear here.",
+      note: "Note",
+    },
+    pricing: {
+      priceInclVat: "Price per night (VAT inclusive)",
+      priceHelper:
+        "This is the amount the guest pays. VAT (15%) and the platform commission (2%) are calculated from this amount.",
+      guestPays: "Guest pays",
+      netEarning: "You earn",
+      netEarningNote: "Added to your wallet once the guest's stay ends",
+      showDeductions: "Deduction details",
+      netBase: "Base excl. VAT",
+      vat: "VAT (15%)",
+      commission: "Platform commission (2%)",
+      vatTooltip: "Remitted in full to ZATCA on your behalf",
+      commissionTooltip: "For platform services, marketing and online payments",
+      placeholder: "Enter a nightly price to see the breakdown",
     },
     pm: {
       previewTitle: "Property Preview",
@@ -675,6 +894,7 @@ export const dict: Record<Locale, Dict> = {
       cardUnits: "Units",
       cardAlerts: "Alerts",
       catBooking: "Bookings",
+      catPayout: "Payouts",
       catUnits: "Units",
       catAlerts: "Alerts",
       groupToday: "Today",
@@ -700,7 +920,9 @@ export const dict: Record<Locale, Dict> = {
       bookingId: "Booking ID",
       duration: "Duration",
       total: "Total",
+      yourShare: "Your share",
       paid: "Paid",
+      awaitingPayment: "Not paid yet",
       refunded: "Refunded",
       hostCancellation: "Host Cancellation",
       notes: "Notes",
@@ -885,6 +1107,7 @@ export const dict: Record<Locale, Dict> = {
       rejected: "Rejected",
     },
     bookingStatus: {
+      pending_payment: "Awaiting Payment",
       confirmed: "Confirmed",
       completed: "Completed",
       cancelled: "Cancelled",
@@ -935,7 +1158,7 @@ export type Dict = {
   brand: string;
   dashboardTag: string;
   nav: Record<
-    "overview" | "units" | "calendar" | "bookings" | "reports" | "account" | "notifications" | "logout",
+    "overview" | "units" | "calendar" | "bookings" | "reports" | "wallet" | "account" | "notifications" | "logout",
     string
   >;
   login: {
@@ -1025,6 +1248,9 @@ export type Dict = {
     subtitle: string;
     exportPdf: string;
     exportCsv: string;
+    grossRevenue: string;
+    netRevenue: string;
+    vat: string;
     commission: string;
     netProfit: string;
     revenueTrend: string;
@@ -1094,7 +1320,109 @@ export type Dict = {
     saveCompanyDocs: string;
     companyDocsSaved: string;
     crInvalid: string;
+    payoutAccountTitle: string;
+    payoutAccountSubtitle: string;
+    accountHolderLabel: string;
+    savePayoutAccount: string;
+    payoutAccountSaved: string;
     ibanInvalid: string;
+    ibanMovedNote: string;
+  };
+  bank: {
+    title: string;
+    subtitle: string;
+    iban: string;
+    accountHolder: string;
+    bankName: string;
+    bankNamePending: string;
+    verified: string;
+    pending: string;
+    missing: string;
+    rejected: string;
+    rejectedFix: string;
+    changeWarning: string;
+    changeTitle: string;
+    confirmChange: string;
+    invalidIban: string;
+    holderRequired: string;
+    save: string;
+    saved: string;
+    ibanPlaceholder: string;
+  };
+  wallet: {
+    title: string;
+    subtitle: string;
+    available: string;
+    pending: string;
+    lifetimeEarnings: string;
+    lifetimePaidOut: string;
+    ledger: string;
+    balanceAfter: string;
+    date: string;
+    type: string;
+    description: string;
+    amount: string;
+    noTransactions: string;
+    loadMore: string;
+    cycleNote: string;
+    pendingNote: string;
+    readyToTransfer: (amount: string) => string;
+    paidThisMonth: (date: string) => string;
+    needMore: (amount: string) => string;
+    bankMissing: string;
+    bankMissingCta: string;
+    bankUnverified: string;
+    suspended: string;
+    negativeBalance: string;
+    progressToMin: (current: string, min: string) => string;
+    type_earning: string;
+    type_payout: string;
+    type_refund_reversal: string;
+    type_adjustment: string;
+    viewPayouts: string;
+  };
+  payouts: {
+    title: string;
+    subtitle: string;
+    reference: string;
+    period: string;
+    amount: string;
+    bookingsCount: string;
+    status: string;
+    paidAt: string;
+    bankReference: string;
+    bankAccount: string;
+    statusPaid: string;
+    statusReversed: string;
+    reversalReason: string;
+    reversedAt: string;
+    detailTitle: (ref: string) => string;
+    includedBookings: string;
+    colBooking: string;
+    colUnit: string;
+    colCheckOut: string;
+    colGross: string;
+    colNetBase: string;
+    colCommission: string;
+    colShare: string;
+    total: string;
+    empty: string;
+    emptyBody: string;
+    note: string;
+  };
+  pricing: {
+    priceInclVat: string;
+    priceHelper: string;
+    guestPays: string;
+    netEarning: string;
+    netEarningNote: string;
+    showDeductions: string;
+    netBase: string;
+    vat: string;
+    commission: string;
+    vatTooltip: string;
+    commissionTooltip: string;
+    placeholder: string;
   };
   pm: {
     previewTitle: string;
@@ -1129,6 +1457,7 @@ export type Dict = {
     cardUnits: string;
     cardAlerts: string;
     catBooking: string;
+    catPayout: string;
     catUnits: string;
     catAlerts: string;
     groupToday: string;
@@ -1154,7 +1483,9 @@ export type Dict = {
     bookingId: string;
     duration: string;
     total: string;
+    yourShare: string;
     paid: string;
+    awaitingPayment: string;
     refunded: string;
     hostCancellation: string;
     notes: string;
@@ -1320,7 +1651,7 @@ export type Dict = {
   };
   monthsShort: string[];
   unitStatus: Record<"draft" | "pending" | "approved" | "rejected", string>;
-  bookingStatus: Record<"confirmed" | "completed" | "cancelled", string>;
+  bookingStatus: Record<"pending_payment" | "confirmed" | "completed" | "cancelled", string>;
   dayStatus: Record<"available" | "booked" | "blocked" | "external", string>;
   propertyType: Record<"apartment" | "studio" | "villa", string>;
   common: Record<

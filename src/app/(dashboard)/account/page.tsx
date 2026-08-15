@@ -7,6 +7,10 @@ import { useLocale } from "@/stores/locale-store";
 import { Avatar } from "@/components/shared/avatar";
 import { LoadingSkeleton, ErrorState } from "@/components/shared/states";
 import { FileUploadRow, type UploadedFile } from "@/features/units/components/file-upload";
+import { BankDetailsForm } from "@/features/account/components/bank-details-form";
+import { PayoutAccountCard } from "@/features/account/components/payout-account-card";
+import { isValidIban, normalizeIban } from "@/lib/iban";
+import { BANK_DETAILS_ENABLED } from "@/lib/constants";
 import { formatPhone } from "@/lib/format";
 import { BRAND } from "@/lib/constants";
 import type { Locale } from "@/lib/i18n";
@@ -34,8 +38,14 @@ export default function AccountPage() {
         <ProfileCard data={data} locale={locale} partnerType={partnerType} onSaved={setData} />
       </div>
 
-      {/* §9.2 — one-time company payout docs, companies only */}
-      {data.accountType === "company" && <CompanyDocsCard />}
+      {/* Staging-only. The endpoint is a stub with no table behind it, so this
+          stays off in production until the backend ships bank_details. */}
+      {BANK_DETAILS_ENABLED && <BankDetailsForm />}
+
+      {/* The payout IBAN is NOT company-only — PUT /me/company-docs persists it
+          for any partner type. Companies enter it alongside their documents
+          below; individuals get the bank fields on their own. */}
+      {data.accountType === "company" ? <CompanyDocsCard /> : <PayoutAccountCard />}
     </div>
   );
 }
@@ -164,13 +174,16 @@ function CompanyDocsCard() {
   async function save() {
     setFormError(null);
     if (!/^\d{10}$/.test(cr)) return setFormError(a.crInvalid);
-    if (!/^SA\d{22}$/i.test(iban)) return setFormError(a.ibanInvalid);
+    if (!isValidIban(iban)) return setFormError(a.ibanInvalid);
 
     setSaving(true);
     try {
+      // `iban` MUST stay in this payload. The backend has no bank_details table;
+      // company-docs completeness (and therefore unit submission) reads the
+      // legacy `partner_details.iban` this write populates.
       const updated = await api.putCompanyDocs({
         cr,
-        iban,
+        iban: normalizeIban(iban),
         authorizationLetterFileId: authLetter?.fileId ?? null,
         vatCertificateFileId: vatCert?.fileId ?? null,
         operatorLicenseFileId: operatorLicense?.fileId ?? null,
@@ -203,6 +216,9 @@ function CompanyDocsCard() {
 
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <TextField label={a.crLabel} value={cr} onChange={setCr} dir="ltr" />
+        {/* A payout account, not a company document — the endpoint is just badly
+            named for it. This is the write that actually reaches the partner
+            record today; it moves to /me/bank-details once Phase A ships. */}
         <TextField label={a.ibanLabel} value={iban} onChange={setIban} dir="ltr" />
       </div>
 

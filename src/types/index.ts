@@ -8,8 +8,12 @@ export type AccountType = "individual" | "company";
 /** Unit lifecycle (§7). Do NOT conflate with availability. */
 export type UnitStatus = "draft" | "pending" | "approved" | "rejected";
 
-/** Booking states — NO "pending" (payment is instant via Moyasar). */
-export type BookingStatus = "confirmed" | "completed" | "cancelled";
+/**
+ * Booking states. `pending_payment` = the booking exists but the guest hasn't
+ * paid yet — NOT an approval queue (that's `UnitStatus.pending`, a different
+ * concept). Money is only real from `confirmed` onward.
+ */
+export type BookingStatus = "pending_payment" | "confirmed" | "completed" | "cancelled";
 
 /** Calendar day availability. */
 export type DayStatus = "available" | "booked" | "blocked" | "external";
@@ -51,11 +55,33 @@ export interface Partner {
  */
 export interface CompanyDocs {
   cr: string; // 10 digits
+  /**
+   * The payout IBAN, for ANY partner type — `PUT /me/company-docs` has no
+   * partner-type gate. Badly named here; it moves to `/me/bank-details` once
+   * the backend ships that table.
+   */
   iban: string; // SA + 22 digits
+  /** Accepted by the endpoint but NOT stored — no column yet, so reads come back empty. */
+  accountHolderName?: string;
   authorizationLetterFileId: string | null;
   vatCertificateFileId: string | null;
   operatorLicenseFileId: string | null;
   complete: boolean;
+}
+
+/**
+ * Payout bank account — `GET`/`PUT /me/bank-details`. Collected for BOTH
+ * account types: an individual partner with no IBAN cannot be paid at all.
+ * Verification is manual, by Mamsa finance, and any IBAN change resets it.
+ */
+export interface BankDetails {
+  iban: string;
+  accountHolderName: string;
+  bankName: string | null;
+  verified: boolean;
+  verifiedAt: string | null; // ISO
+  rejectionReason: string | null;
+  updatedAt: string | null; // ISO
 }
 
 export type UploadKind = "unit_photo" | "license_pdf" | "company_doc";
@@ -136,10 +162,13 @@ export interface Unit {
   updatedAt: string; // ISO
 }
 
+/** All figures in SAR. `total` is the GROSS the guest paid, VAT included. */
 export interface BookingFinancials {
-  total: number; // SAR
-  commission: number; // 2% of total
-  partnerShare: number; // 98% of total
+  total: number;
+  netBase: number; // total excluding VAT
+  vat: number; // 15%, remitted to ZATCA
+  commission: number; // 2% of netBase
+  partnerShare: number; // netBase - commission
 }
 
 export interface Booking {
@@ -169,6 +198,95 @@ export interface Booking {
   };
 }
 
+/* ---------------- Wallet ---------------- */
+
+export type PartnerLedgerEntryType = "earning" | "payout" | "refund_reversal" | "adjustment";
+
+/** Why no transfer is happening. Exactly one applies at a time. */
+export type WalletIneligibleReason =
+  | "below_minimum"
+  | "bank_unverified"
+  | "bank_missing"
+  | "partner_suspended"
+  | "negative_balance";
+
+/**
+ * `GET /wallet`. Answers the three questions a partner actually has: how much
+ * am I owed, when do I get it, and why haven't I been paid yet.
+ *
+ * There is deliberately NO next-payout date. Transfers are executed manually by
+ * finance once per Gregorian month with no fixed day — a promised date that
+ * slips generates more tickets than no date at all.
+ */
+export interface WalletSummary {
+  availableBalance: number; // ready to transfer
+  pendingBalance: number; // earned but the stay hasn't finished
+  lifetimeEarnings: number;
+  lifetimePaidOut: number;
+  currency: "SAR";
+  minPayoutAmount: number;
+  payoutEligible: boolean;
+  ineligibleReason: WalletIneligibleReason | null;
+  paidThisMonth: boolean;
+  bankVerified: boolean;
+  lastPayoutAt: string | null; // ISO
+  lastPayoutAmount: number | null;
+}
+
+/** `GET /wallet/ledger`. `amount` is signed; `balanceAfter` is the running total. */
+export interface PartnerLedgerEntry {
+  id: string;
+  type: PartnerLedgerEntryType;
+  amount: number;
+  balanceAfter: number;
+  refType: "booking" | "payout" | "manual";
+  refId: string;
+  refCode: string;
+  description: string;
+  createdAt: string; // ISO
+}
+
+/**
+ * Only two states exist. A payout is RECORDED after the bank transfer has
+ * already happened, so there is no pending or failed state to render.
+ */
+export type PayoutStatus = "paid" | "reversed";
+
+/**
+ * A monthly transfer. The partner never sees a full IBAN back from the server
+ * (`ibanMasked` only) and never sees which admin executed the transfer.
+ */
+export interface PartnerPayout {
+  id: string;
+  reference: string;
+  periodMonth: string; // "YYYY-MM"
+  amount: number;
+  bookingsCount: number;
+  currency: "SAR";
+  ibanMasked: string; // "••••7519"
+  bankName: string | null;
+  status: PayoutStatus;
+  paidAt: string; // ISO
+  bankReference: string;
+  note: string | null;
+  reversedAt: string | null;
+  reversalReason: string | null;
+}
+
+/** `bookings` must sum to `amount` — the detail sheet shows that total back. */
+export interface PartnerPayoutDetail extends PartnerPayout {
+  bookings: Array<{
+    bookingId: string;
+    bookingCode: string;
+    unitName: string;
+    checkOut: string;
+    gross: number;
+    netBase: number;
+    commission: number;
+    partnerShare: number;
+  }>;
+}
+
 export interface CalendarDay {
   date: string; // ISO (yyyy-mm-dd)
   status: DayStatus;
@@ -192,7 +310,10 @@ export type NotificationType =
   | "unit_rejected"
   | "new_booking"
   | "sync_failed"
-  | "host_cancellation";
+  | "host_cancellation"
+  /** Added with payouts — a partner should learn they were paid from the app,
+   *  not by noticing a bank SMS. */
+  | "payout";
 
 /**
  * What the API actually sends: the §8 five plus extras outside the contract
@@ -223,7 +344,7 @@ export interface AppNotification {
 export interface OverviewMetrics {
   unitsCount: number; // excluding drafts
   bookingsCount: number; // confirmed + completed (NOT cancelled)
-  totalRevenue: number; // SAR — partner share (98%) of non-cancelled bookings
+  totalRevenue: number; // SAR — partner share (98%) of confirmed + completed
   bookingsByMonth: { month: string; count: number }[]; // last 12 months, "YYYY-MM"
   revenueByMonth: { month: string; amount: number }[]; // last 12 months, SAR
   thisMonthRevenue: number; // v1.2 — partner share (SAR), current calendar month
@@ -233,10 +354,25 @@ export interface OverviewMetrics {
 
 /** §7.1 `GET /reports/summary?from=&to=`. */
 export interface ReportsSummary {
-  grossRevenue: number; // sum of totals (non-cancelled, in range)
+  grossRevenue: number; // what guests paid, VAT INCLUDED
+  /**
+   * Revenue net of TAX — `grossRevenue` minus `vat`, and the base commission is
+   * charged on. NOT `netProfit`: that is revenue minus COMMISSION. Different
+   * questions, never the same tile or label.
+   *
+   * Optional until the production cutover — staging sends it, production still
+   * returns the old shape. Read it, never recompute it.
+   */
+  netRevenue?: number;
+  /**
+   * VAT remitted to ZATCA. The partner surface reads `vat`; the admin panel's
+   * own field is `vatCollected` — deliberately NOT normalised to each other.
+   * Optional until the production cutover.
+   */
+  vat?: number;
   bookingsCount: number;
-  commission: number; // 2%
-  netProfit: number; // grossRevenue - commission (SAR)
+  commission: number; // 2% of netRevenue
+  netProfit: number; // revenue minus COMMISSION — the partner's share
   revenueByMonth: { month: string; amount: number }[];
   bookingsByMonth: { month: string; count: number }[];
   perUnit: { unitId: string; unitName: string; bookings: number; revenue: number }[];

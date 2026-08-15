@@ -8,11 +8,19 @@ import type {
   OverviewMetrics,
   ReportsSummary,
   CompanyDocs,
+  BankDetails,
+  WalletSummary,
+  WalletIneligibleReason,
+  PartnerLedgerEntry,
+  PartnerPayout,
+  PartnerPayoutDetail,
+  PayoutStatus,
   UnitCreateInput,
   PresignedUpload,
 } from "@/types";
 import { computeFinancials } from "@/lib/format";
-import { DEFAULT_CANCELLATION_POLICY } from "@/lib/constants";
+import { DEFAULT_CANCELLATION_POLICY, PAYOUT_MIN_BALANCE, isRevenueBearing } from "@/lib/constants";
+import { isValidIban, maskIban, normalizeIban } from "@/lib/iban";
 
 /**
  * Mock seed — deliberately SPEC-CORRECT (the designer's mocks were not):
@@ -219,6 +227,14 @@ export const mockBookings: Booking[] = [
   bk("b_2", "BK-2402", mockUnits[1], "سارة المطيري", "+966553456789", "2026-07-22T16:00:00Z", "2026-07-29T12:00:00Z", 7, 4, "confirmed"),
   bk("b_3", "BK-2403", mockUnits[0], "خالد العتيبي", "+966561234567", "2026-06-10T15:00:00Z", "2026-06-14T12:00:00Z", 4, 2, "completed"),
   bk("b_4", "BK-2404", mockUnits[1], "منى الدوسري", "+966544567890", "2026-07-01T16:00:00Z", "2026-07-05T12:00:00Z", 4, 3, "cancelled"),
+  // Unpaid — seeded so the awaiting-payment state is reachable in mock mode.
+  bk("b_5", "BK-2405", mockUnits[0], "فهد القحطاني", "+966555678901", "2026-08-18T15:00:00Z", "2026-08-21T12:00:00Z", 3, 2, "pending_payment"),
+  // Completed history — the wallet's available balance is derived from these,
+  // so there has to be enough of it to clear the 2,000 payout threshold and
+  // still show a prior payout. Chronological by check-out.
+  bk("b_6", "BK-2312", mockUnits[1], "نورة الشمري", "+966501112233", "2026-03-04T16:00:00Z", "2026-03-09T12:00:00Z", 5, 4, "completed"),
+  bk("b_7", "BK-2345", mockUnits[2], "بندر الحربي", "+966502223344", "2026-04-12T15:00:00Z", "2026-04-15T12:00:00Z", 3, 6, "completed"),
+  bk("b_8", "BK-2377", mockUnits[0], "ريم الغامدي", "+966503334455", "2026-05-20T15:00:00Z", "2026-05-26T12:00:00Z", 6, 2, "completed"),
 ];
 
 export const mockCalendar: Record<string, CalendarDay[]> = {
@@ -272,6 +288,8 @@ export const mockNotifications: AppNotification[] = [
   { id: "n_3", type: "sync_failed", title: "فشلت مزامنة تقويم خارجي", body: "تعذّرت مزامنة Vrbo لوحدة فيلا الروضة — الدمام.", read: true, createdAt: hoursAgo(27), href: "/calendar" },
   { id: "n_4", type: "host_cancellation", title: "تم تسجيل إلغاء مضيف", body: "أُلغي الحجز BK-2404 واستُرد كامل المبلغ (2,160 ر.س) للضيف.", read: true, createdAt: hoursAgo(31), href: "/bookings" },
   { id: "n_5", type: "unit_approved", title: "تمت الموافقة على وحدتك", body: "شقة إطلالة البحر — جدة أصبحت معتمدة وظاهرة في الموقع.", read: true, createdAt: hoursAgo(24 * 6), href: "/units/u_2" },
+  // A partner should learn they were paid from the app, not from a bank SMS.
+  { id: "n_6", type: "payout", title: "تم تحويل مستحقاتك", body: "حوّلنا 5,368.69 ر.س إلى حسابك البنكي (المرجع PO-2026-04).", read: false, createdAt: hoursAgo(9), href: "/wallet/payouts?payout=po_1" },
 ];
 
 /**
@@ -308,7 +326,9 @@ const monthKey = (iso: string) => iso.slice(0, 7);
 /** §3.1 contract shape — aggregates computed honestly from the seeded data. */
 export function buildOverview(): OverviewMetrics {
   const months = last12Months();
-  const active = mockBookings.filter((b) => b.status !== "cancelled");
+  // §3.1: bookingsCount/totalRevenue are confirmed + completed — an unpaid
+  // booking has earned nothing yet, so it stays out of both.
+  const active = mockBookings.filter((b) => isRevenueBearing(b.status));
 
   const bookingsByMonth = months.map((month) => ({
     month,
@@ -345,11 +365,17 @@ export function buildReportsSummary(from: string, to: string): ReportsSummary {
   const end = new Date(to);
   const inRange = mockBookings.filter((b) => {
     const d = new Date(b.checkIn);
-    return b.status !== "cancelled" && d >= start && d <= end;
+    return isRevenueBearing(b.status) && d >= start && d <= end;
   });
 
-  const grossRevenue = inRange.reduce((s, b) => s + b.financials.total, 0);
-  const commission = inRange.reduce((s, b) => s + b.financials.commission, 0);
+  // Every line is summed from the per-booking split, so gross still equals
+  // net + VAT and netProfit is literally the partner's share — not a
+  // re-derivation that could round differently from the wallet.
+  const grossRevenue = round2(inRange.reduce((s, b) => s + b.financials.total, 0));
+  const netRevenue = round2(inRange.reduce((s, b) => s + b.financials.netBase, 0));
+  const vat = round2(inRange.reduce((s, b) => s + b.financials.vat, 0));
+  const commission = round2(inRange.reduce((s, b) => s + b.financials.commission, 0));
+  const netProfit = round2(inRange.reduce((s, b) => s + b.financials.partnerShare, 0));
 
   // Live backend returns ONLY months with data, ascending (NEXTJS-DASHBOARD-REPORTS §2)
   const months = [...new Set(inRange.map((b) => monthKey(b.checkIn)))].sort();
@@ -364,9 +390,11 @@ export function buildReportsSummary(from: string, to: string): ReportsSummary {
 
   return {
     grossRevenue,
+    netRevenue,
+    vat,
     bookingsCount: inRange.length,
     commission,
-    netProfit: grossRevenue - commission,
+    netProfit,
     revenueByMonth: months.map((month) => ({
       month,
       amount: inRange.filter((b) => monthKey(b.checkIn) === month).reduce((s, b) => s + b.financials.total, 0),
@@ -384,7 +412,9 @@ export function buildReportCsv(from: string, to: string): string {
   const s = buildReportsSummary(from, to);
   const lines = [
     `التقرير,${from},${to}`,
-    `إجمالي الإيرادات,${s.grossRevenue}`,
+    `إجمالي الإيرادات (شامل الضريبة),${s.grossRevenue}`,
+    `صافي الإيراد,${s.netRevenue}`,
+    `ضريبة القيمة المضافة (15%),${s.vat}`,
     `عدد الحجوزات,${s.bookingsCount}`,
     `عمولة ممسى (2%),${s.commission}`,
     `صافي الربح,${s.netProfit}`,
@@ -441,7 +471,11 @@ export const mockCompanyDocs: CompanyDocs = {
 function recomputeCompanyDocsComplete() {
   mockCompanyDocs.complete = Boolean(
     /^\d{10}$/.test(mockCompanyDocs.cr) &&
-      /^SA\d{22}$/i.test(mockCompanyDocs.iban) &&
+      // The BACKEND still reads the legacy `partner_details.iban` written by
+      // PUT /me/company-docs — there is no bank_details table yet. Do NOT
+      // repoint this at /me/bank-details: that endpoint persists nothing, so
+      // a company would stop being able to submit units entirely.
+      isValidIban(mockCompanyDocs.iban) &&
       mockCompanyDocs.authorizationLetterFileId &&
       mockCompanyDocs.vatCertificateFileId &&
       mockCompanyDocs.operatorLicenseFileId,
@@ -449,15 +483,336 @@ function recomputeCompanyDocsComplete() {
 }
 
 export function saveMockCompanyDocs(patch: Partial<CompanyDocs>): CompanyDocs {
-  Object.assign(mockCompanyDocs, patch);
+  // `accountHolderName` is accepted and then dropped — there is no column for
+  // it yet. Mirrored here on purpose so mock mode reproduces the real "comes
+  // back empty on reload" behaviour instead of looking like it persists.
+  const { accountHolderName: _discarded, ...stored } = patch;
+  Object.assign(mockCompanyDocs, stored);
   recomputeCompanyDocsComplete();
   return { ...mockCompanyDocs };
+}
+
+/* ---------------- Bank details (staging-only stub) ---------------- */
+
+/** What the staging stub echoes back regardless of the IBAN sent. */
+const STUB_BANK_NAME = "مصرف الراجحي";
+
+/**
+ * Seeded verified so the wallet's happy path is the default view. The
+ * unverified and missing states are reachable by editing the IBAN (which resets
+ * verification, exactly as the server does) or via `MOCK_WALLET_SCENARIO`.
+ */
+export const mockBankDetails: BankDetails = {
+  iban: "SA0380000000608010167519",
+  accountHolderName: "عبدالله بن سعيد الحارثي",
+  bankName: "مصرف الراجحي",
+  verified: true,
+  verifiedAt: "2026-02-11T09:20:00Z",
+  rejectionReason: null,
+  updatedAt: "2026-02-10T14:05:00Z",
+};
+
+/** null until the partner has actually saved something — mirrors GET returning 404/null. */
+export function readMockBankDetails(): BankDetails | null {
+  return mockBankDetails.iban ? { ...mockBankDetails } : null;
+}
+
+/**
+ * Mirrors the server rule exactly: ANY change to the IBAN drops verification
+ * back to pending and clears the previous rejection. Editing only the holder
+ * name leaves an already-verified account verified.
+ */
+export function saveMockBankDetails(input: { iban: string; accountHolderName: string }): BankDetails {
+  const iban = normalizeIban(input.iban);
+  const ibanChanged = iban !== mockBankDetails.iban;
+
+  mockBankDetails.iban = iban;
+  mockBankDetails.accountHolderName = input.accountHolderName.trim();
+  // Server-derived. The staging stub returns the same name for every IBAN, so
+  // the mock does too — pretending to resolve real bank codes here would make
+  // mock mode look more capable than the endpoint actually is.
+  mockBankDetails.bankName = iban ? STUB_BANK_NAME : null;
+  mockBankDetails.updatedAt = new Date().toISOString();
+  if (ibanChanged) {
+    mockBankDetails.verified = false;
+    mockBankDetails.verifiedAt = null;
+    mockBankDetails.rejectionReason = null;
+  }
+
+  recomputeCompanyDocsComplete();
+  return { ...mockBankDetails };
 }
 
 /** §2.2 — PATCH /me editable fields are name + email only. */
 export function saveMockPartner(patch: Partial<Pick<Partner, "name" | "email">>): Partner {
   Object.assign(mockPartner, patch);
   return { ...mockPartner };
+}
+
+/* ---------------- Wallet ---------------- */
+
+/**
+ * Flip this to exercise each payout state by hand. Deliberately a constant and
+ * not a UI control — it exists for manual testing, not for partners.
+ */
+export type MockWalletScenario =
+  | "eligible"
+  | "already_paid_this_month"
+  | "below_minimum"
+  | "bank_missing"
+  | "bank_unverified"
+  | "partner_suspended"
+  | "negative_balance";
+
+export const MOCK_WALLET_SCENARIO: MockWalletScenario = "eligible";
+
+const round2 = (n: number) => Math.round((n + Number.EPSILON * Math.abs(n)) * 100) / 100;
+
+/** Completed stays, oldest first — the order earnings actually landed. */
+function completedBookingsChronologically(): Booking[] {
+  return mockBookings
+    .filter((b) => b.status === "completed")
+    .sort((a, b) => a.checkOut.localeCompare(b.checkOut));
+}
+
+/**
+ * Payouts are the SOURCE, and the ledger is derived from them — not the other
+ * way round. That is what makes a payout's `bookings[]` sum to its `amount` by
+ * construction: the amount is never written down, it is the sum.
+ *
+ * A reversed payout keeps its debit row AND gets a compensating credit, so the
+ * money nets to zero without erasing the history. Removing the record would be
+ * worse than useless: the partner already got an email saying they were paid.
+ */
+const payoutSeed = [
+  {
+    id: "po_1",
+    reference: "PO-2026-04",
+    periodMonth: "2026-03",
+    bookingIds: ["b_6", "b_7"],
+    paidAt: "2026-04-24T10:15:00Z",
+    bankReference: "TRF-884213-SA",
+    note: null,
+    status: "paid" as PayoutStatus,
+    reversedAt: null,
+    reversalReason: null,
+  },
+  {
+    id: "po_2",
+    reference: "PO-2026-06",
+    periodMonth: "2026-05",
+    bookingIds: ["b_8"],
+    paidAt: "2026-06-08T09:40:00Z",
+    bankReference: "TRF-901554-SA",
+    note: null,
+    status: "reversed" as PayoutStatus,
+    reversedAt: "2026-06-20T12:00:00Z",
+    reversalReason: "أعاد البنك الحوالة — بيانات الحساب لم تطابق اسم صاحب الحساب.",
+  },
+];
+
+function payoutBookings(bookingIds: string[]) {
+  return bookingIds
+    .map((id) => mockBookings.find((b) => b.id === id))
+    .filter((b): b is Booking => Boolean(b))
+    .map((b) => ({
+      bookingId: b.id,
+      bookingCode: b.code,
+      unitName: b.unitName,
+      checkOut: b.checkOut,
+      gross: b.financials.total,
+      netBase: b.financials.netBase,
+      commission: b.financials.commission,
+      partnerShare: b.financials.partnerShare,
+    }));
+}
+
+function payoutAmount(bookingIds: string[]): number {
+  return round2(payoutBookings(bookingIds).reduce((s, b) => s + b.partnerShare, 0));
+}
+
+export const mockPayouts: PartnerPayout[] = payoutSeed.map((p) => ({
+  id: p.id,
+  reference: p.reference,
+  periodMonth: p.periodMonth,
+  amount: payoutAmount(p.bookingIds),
+  bookingsCount: p.bookingIds.length,
+  currency: "SAR",
+  ibanMasked: maskIban(mockBankDetails.iban),
+  bankName: mockBankDetails.bankName,
+  status: p.status,
+  paidAt: p.paidAt,
+  bankReference: p.bankReference,
+  note: p.note,
+  reversedAt: p.reversedAt,
+  reversalReason: p.reversalReason,
+}));
+
+export function readMockPayouts(params: { limit?: number } = {}): PartnerPayout[] {
+  const sorted = [...mockPayouts].sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+  return params.limit ? sorted.slice(0, params.limit) : sorted;
+}
+
+export function readMockPayout(id: string): PartnerPayoutDetail | null {
+  const payout = mockPayouts.find((p) => p.id === id);
+  const seed = payoutSeed.find((p) => p.id === id);
+  if (!payout || !seed) return null;
+  return { ...payout, bookings: payoutBookings(seed.bookingIds) };
+}
+
+/**
+ * The ledger is BUILT, not written down: every row's `balanceAfter` is the
+ * running total of the rows before it, so the summary below can be read off the
+ * end of it rather than invented separately. That is what makes the two
+ * reconcile — a hand-keyed balance would drift the first time a seed changed.
+ */
+function buildLedger(): PartnerLedgerEntry[] {
+  const completed = completedBookingsChronologically();
+  const rows: Omit<PartnerLedgerEntry, "balanceAfter">[] = [];
+
+  completed.forEach((b, i) => {
+    rows.push({
+      id: `led_e${i + 1}`,
+      type: "earning",
+      amount: b.financials.partnerShare,
+      refType: "booking",
+      refId: b.id,
+      refCode: b.code,
+      description: `حصتك من الحجز ${b.code} — ${b.unitName}`,
+      createdAt: b.checkOut,
+    });
+
+    // A guest refund clawed back after the fact.
+    if (i === 2) {
+      rows.push({
+        id: "led_r1",
+        type: "refund_reversal",
+        amount: -250,
+        refType: "booking",
+        refId: b.id,
+        refCode: b.code,
+        description: `استرجاع مبلغ مسترد للضيف — ${b.code}`,
+        createdAt: addDays(b.checkOut, 3),
+      });
+    }
+  });
+
+  // Each payout debits exactly what its bookings earned; a reversed one is
+  // credited straight back, so the record survives while the money doesn't.
+  for (const p of payoutSeed) {
+    const amount = payoutAmount(p.bookingIds);
+    rows.push({
+      id: `led_${p.id}`,
+      type: "payout",
+      amount: -amount,
+      refType: "payout",
+      refId: p.id,
+      refCode: p.reference,
+      description: "حوالة بنكية شهرية",
+      createdAt: p.paidAt,
+    });
+
+    if (p.status === "reversed" && p.reversedAt) {
+      rows.push({
+        id: `led_${p.id}_rev`,
+        type: "adjustment",
+        amount,
+        refType: "payout",
+        refId: p.id,
+        refCode: p.reference,
+        description: `عكس الحوالة ${p.reference} — أُعيد المبلغ إلى رصيدك`,
+        createdAt: p.reversedAt,
+      });
+    }
+  }
+
+  let running = 0;
+  return rows
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((r) => {
+      running = round2(running + r.amount);
+      return { ...r, balanceAfter: running };
+    });
+}
+
+function addDays(iso: string, days: number): string {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
+/** Ascending (oldest first) — the API hands it back newest-first. */
+export const mockLedger: PartnerLedgerEntry[] = buildLedger();
+
+export function readMockLedger(params: { limit?: number; before?: string } = {}): PartnerLedgerEntry[] {
+  const { limit = 20, before } = params;
+  const newestFirst = [...mockLedger].reverse();
+  const start = before ? newestFirst.findIndex((r) => r.createdAt < before) : 0;
+  return start === -1 ? [] : newestFirst.slice(start, start + limit);
+}
+
+/**
+ * Read off the ledger, not stated alongside it. `MOCK_WALLET_SCENARIO` then
+ * overrides only the eligibility surface — the money keeps reconciling.
+ */
+export function buildWallet(): WalletSummary {
+  const ledger = mockLedger;
+  const availableBalance = ledger.length ? ledger[ledger.length - 1].balanceAfter : 0;
+  const lifetimeEarnings = round2(
+    ledger.filter((r) => r.type === "earning").reduce((s, r) => s + r.amount, 0),
+  );
+  // Only transfers that actually stuck. A reversed payout came back — counting
+  // it would tell the partner they've been paid money they still hold.
+  const lifetimePaidOut = round2(
+    mockPayouts.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0),
+  );
+  // Earned, but the guest hasn't checked out — not transferable yet.
+  const pendingBalance = round2(
+    mockBookings
+      .filter((b) => b.status === "pending_payment" || b.status === "confirmed")
+      .reduce((s, b) => s + b.financials.partnerShare, 0),
+  );
+  const lastPayout =
+    [...mockPayouts].filter((p) => p.status === "paid").sort((a, b) => b.paidAt.localeCompare(a.paidAt))[0] ?? null;
+
+  const base: WalletSummary = {
+    availableBalance,
+    pendingBalance,
+    lifetimeEarnings,
+    lifetimePaidOut,
+    currency: "SAR",
+    minPayoutAmount: PAYOUT_MIN_BALANCE,
+    payoutEligible: true,
+    ineligibleReason: null,
+    paidThisMonth: false,
+    bankVerified: true,
+    lastPayoutAt: lastPayout?.paidAt ?? null,
+    lastPayoutAmount: lastPayout?.amount ?? null,
+  };
+
+  const ineligible = (reason: WalletIneligibleReason, patch: Partial<WalletSummary> = {}) => ({
+    ...base,
+    payoutEligible: false,
+    ineligibleReason: reason,
+    ...patch,
+  });
+
+  switch (MOCK_WALLET_SCENARIO) {
+    case "already_paid_this_month":
+      return { ...base, paidThisMonth: true, lastPayoutAt: new Date().toISOString() };
+    case "below_minimum":
+      return ineligible("below_minimum", { availableBalance: round2(PAYOUT_MIN_BALANCE * 0.42) });
+    case "bank_missing":
+      return ineligible("bank_missing", { bankVerified: false });
+    case "bank_unverified":
+      return ineligible("bank_unverified", { bankVerified: false });
+    case "partner_suspended":
+      return ineligible("partner_suspended");
+    case "negative_balance":
+      return ineligible("negative_balance", { availableBalance: -320.5 });
+    default:
+      return base;
+  }
 }
 
 /* ---------------- Uploads (§9.1 — presign, mocked as an instant local "upload") ---------------- */

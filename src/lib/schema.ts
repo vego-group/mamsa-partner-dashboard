@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidIban, normalizeIban } from "@/lib/iban";
 
 /** National ID / Iqama: 10 digits, starts with 1. */
 export const nationalIdSchema = z
@@ -10,10 +11,27 @@ export const crSchema = z
   .string()
   .regex(/^\d{10}$/, "رقم السجل التجاري يجب أن يتكون من 10 أرقام");
 
-/** Saudi IBAN: SA + 22 digits. */
+/**
+ * Saudi IBAN: SA + 22 digits AND a valid mod-97 checksum. Kept as the shared
+ * export for existing callers, but it no longer accepts a shape-only match —
+ * a typo inside the 22 digits passes a regex and fails at the bank.
+ */
 export const ibanSchema = z
   .string()
-  .regex(/^SA\d{22}$/i, "رقم الآيبان غير صحيح (يبدأ بـ SA)");
+  .transform(normalizeIban)
+  .refine(isValidIban, "رقم الآيبان غير صحيح");
+
+/** Payout bank account — `PUT /me/bank-details`. Both account types. */
+export const bankDetailsSchema = z.object({
+  iban: ibanSchema,
+  accountHolderName: z
+    .string()
+    .trim()
+    .min(3, "اسم صاحب الحساب مطلوب")
+    .max(100, "اسم صاحب الحساب بحد أقصى 100 حرف"),
+});
+
+export type BankDetailsInput = z.infer<typeof bankDetailsSchema>;
 
 /** Phone: 9 digits after +966, first digit 5. */
 export const phoneSchema = z

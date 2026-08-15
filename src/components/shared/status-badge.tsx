@@ -7,7 +7,7 @@ import type { UnitStatus, BookingStatus, DayStatus } from "@/types";
 /**
  * ONE badge system, dashboard-wide.
  * Draft=grey · Pending=orange · Approved=green · Rejected=red (units)
- * Confirmed=green · Completed=blue · Cancelled=red (bookings)
+ * AwaitingPayment=orange · Confirmed=green · Completed=blue · Cancelled=red (bookings)
  */
 
 const unitClasses: Record<UnitStatus, string> = {
@@ -18,6 +18,7 @@ const unitClasses: Record<UnitStatus, string> = {
 };
 
 const bookingClasses: Record<BookingStatus, string> = {
+  pending_payment: "bg-status-pending/15 text-status-pending",
   confirmed: "bg-status-approved/15 text-status-approved",
   completed: "bg-blue-500/15 text-blue-700",
   cancelled: "bg-status-rejected/15 text-status-rejected",

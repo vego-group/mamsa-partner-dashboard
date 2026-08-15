@@ -4,10 +4,18 @@ import { useLocale } from "@/stores/locale-store";
 import { formatCurrency, formatDate, formatPhone } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
-/** Always renders SAR — never AED/USD. */
-export function MoneyText({ amount, className }: { amount: number; className?: string }) {
+/** Always renders SAR — never AED/USD. `precise` keeps halalas (wallet/ledger). */
+export function MoneyText({
+  amount,
+  className,
+  precise,
+}: {
+  amount: number;
+  className?: string;
+  precise?: boolean;
+}) {
   const { locale } = useLocale();
-  return <span className={cn("tabular-nums", className)}>{formatCurrency(amount, locale)}</span>;
+  return <span className={cn("tabular-nums", className)}>{formatCurrency(amount, locale, precise)}</span>;
 }
 
 /** Always DD/MM/YYYY, Latin digits. */

@@ -7,7 +7,7 @@ import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
 import { Card, Button } from "@/components/ui";
 import { LoadingSkeleton, ErrorState } from "@/components/shared/states";
-import { formatCurrency, formatCompactCurrency } from "@/lib/format";
+import { formatCurrency, formatCompactCurrency, formatCompactCurrencyOptional } from "@/lib/format";
 import { SAUDI_CITIES } from "@/lib/constants";
 import {
   deltaPct,
@@ -135,10 +135,22 @@ export default function ReportsPage() {
       {exportError && <p className="text-sm text-status-rejected">{exportError}</p>}
 
       {/* KPI cards — deltas derived client-side from the monthly series */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label={t.overview.totalRevenue} value={formatCompactCurrency(d.grossRevenue, locale)} delta={deltaPct(revenueAmounts)} />
+      {/* Gross is VAT-inclusive, so net-of-tax and VAT get their own lines —
+          without them the commission looks like it's charged on the tax too.
+          Both are READ from the API, never derived here, and both are absent
+          until the production cutover — hence the optional formatter. */}
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <Kpi label={t.reports.grossRevenue} value={formatCompactCurrency(d.grossRevenue, locale)} delta={deltaPct(revenueAmounts)} />
+        {/* The OPTIONAL TYPE is the guard: `netRevenue?`/`vat?` make a plain
+            formatCompactCurrency call a compile error until production cuts
+            over. Do not swap these for it, cast to number, or make the fields
+            required — see "the optional-type guard on the VAT tiles" in
+            src/mocks/reports.test.ts. */}
+        <Kpi label={t.reports.netRevenue} value={formatCompactCurrencyOptional(d.netRevenue, locale)} />
+        <Kpi label={t.reports.vat} value={formatCompactCurrencyOptional(d.vat, locale)} />
         <Kpi label={t.overview.totalBookings} value={String(d.bookingsCount)} delta={deltaPct(bookingCounts)} />
         <Kpi label={t.reports.commission} value={formatCompactCurrency(d.commission, locale)} />
+        {/* Revenue minus COMMISSION — a different question from netRevenue above. */}
         <Kpi label={t.reports.netProfit} value={formatCompactCurrency(d.netProfit, locale)} delta={deltaPct(revenueAmounts)} />
       </div>
 

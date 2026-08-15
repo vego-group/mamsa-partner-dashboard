@@ -17,6 +17,7 @@ import {
   BarChart3,
   Bell,
   User,
+  Wallet,
   LogOut,
 } from "lucide-react";
 
@@ -26,6 +27,8 @@ const items = [
   { href: "/calendar", key: "calendar", icon: CalendarDays },
   { href: "/bookings", key: "bookings", icon: BookOpen },
   { href: "/reports", key: "reports", icon: BarChart3 },
+  // /wallet/payouts is reached from inside the wallet — not a second nav item.
+  { href: "/wallet", key: "wallet", icon: Wallet },
   { href: "/notifications", key: "notifications", icon: Bell },
   { href: "/account", key: "account", icon: User },
 ] as const;
@@ -35,6 +38,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
   const { t } = useLocale();
   const partner = useAsync(() => api.getPartner());
   const bookings = useAsync(() => api.listBookings());
+  const notifications = useAsync(() => api.listNotifications());
   // Polled by the dashboard layout (GET /notifications/unread-count).
   const unreadNotifications = useNotifications((s) => s.unread);
   const [signingOut, setSigningOut] = useState(false);
@@ -55,7 +59,13 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
   }
 
   const badges: Partial<Record<(typeof items)[number]["key"], number>> = {
+    // Volume, not money — deliberately NOT `isRevenueBearing`. An unpaid booking
+    // is one the partner needs to see and chase, and narrowing this would make
+    // the badge disagree with the list it links to. Filter money, not volume.
     bookings: (bookings.data ?? []).filter((b) => b.status !== "cancelled").length,
+    // Unread payout notifications only — "you were paid" should be visible from
+    // the nav, not something the partner discovers via a bank SMS.
+    wallet: (notifications.data ?? []).filter((n) => n.type === "payout" && !n.read).length,
     notifications: unreadNotifications,
   };
 

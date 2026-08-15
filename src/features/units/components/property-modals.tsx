@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { Modal, Button } from "@/components/ui";
 import { MoneyText } from "@/components/shared/typed-text";
+import { PriceBreakdown } from "@/features/units/components/price-breakdown";
 import { useLocale } from "@/stores/locale-store";
 import { api, ApiError } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
@@ -84,6 +85,7 @@ function PreviewModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
         <SideTile label={p.nightlyRate} value={<MoneyText amount={unit.pricePerNight} className="text-lg font-bold text-ink" />} />
         <SideTile label={t.wiz.propertyTypeLabel} value={<span className="text-lg font-bold text-ink">{t.propertyType[unit.type]}</span>} />
       </div>
+      <PriceBreakdown gross={unit.pricePerNight} className="mt-3" />
     </Modal>
   );
 }

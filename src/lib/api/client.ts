@@ -17,9 +17,15 @@ import type {
   OverviewMetrics,
   ReportsSummary,
   CompanyDocs,
+  BankDetails,
+  WalletSummary,
+  PartnerLedgerEntry,
+  PartnerPayout,
+  PartnerPayoutDetail,
   UnitCreateInput,
   UploadKind,
 } from "@/types";
+import { isValidIban, normalizeIban } from "@/lib/iban";
 import {
   mockPartner,
   mockUnits,
@@ -36,6 +42,12 @@ import {
   mockIcalExportUrl,
   mockCompanyDocs,
   saveMockCompanyDocs,
+  readMockBankDetails,
+  saveMockBankDetails,
+  buildWallet,
+  readMockLedger,
+  readMockPayouts,
+  readMockPayout,
   saveMockPartner,
   mockPresignUpload,
   createMockUnit,
@@ -290,6 +302,12 @@ export const api = {
   // ---- Reports ----------------------------------------------------------
   /** §7.1 — from/to as ISO dates (yyyy-mm-dd). Range shortcuts are frontend-side. */
   async getReportsSummary(from: string, to: string): Promise<ReportsSummary> {
+    // Both are REQUIRED. Omitting either returns 400 VALIDATION with
+    // `fields: { from, to }` — not an empty result — so fail here with
+    // something readable rather than shipping a request that can't succeed.
+    if (!from || !to) {
+      throw new ApiError(400, "الرجاء تحديد الفترة الزمنية.", "VALIDATION", { from, to });
+    }
     if (USE_MOCK) {
       await delay();
       return buildReportsSummary(from, to);
@@ -361,6 +379,13 @@ export const api = {
   async submitUnit(id: string): Promise<Unit> {
     if (USE_MOCK) {
       await delay(500);
+      // Mirrors the real 409: completeness is driven by the legacy
+      // `partner_details.iban` that PUT /me/company-docs writes. Modelled here
+      // so dropping the IBAN from that payload fails loudly instead of only
+      // breaking against the live backend.
+      if (mockPartner.accountType === "company" && !mockCompanyDocs.complete) {
+        throw new ApiError(409, "بيانات الشركة غير مكتملة.", "COMPANY_DOCS_INCOMPLETE");
+      }
       return submitMockUnit(id);
     }
     return http(`/units/${id}/submit`, { method: "POST" });
@@ -411,6 +436,84 @@ export const api = {
       return saveMockCompanyDocs(patch);
     }
     return http("/me/company-docs", { method: "PUT", body: JSON.stringify(patch) });
+  },
+
+  // ---- Bank details (both account types) ---------------------------------
+  /**
+   * The payout account. Collected for individuals AND companies — gating this
+   * on `accountType === "company"` was a frontend-only restriction that left
+   * individual partners with no way to be paid; the API always accepted both.
+   *
+   * Returns null when the partner has never saved one.
+   */
+  async getBankDetails(): Promise<BankDetails | null> {
+    if (USE_MOCK) {
+      await delay();
+      return readMockBankDetails();
+    }
+    return http("/me/bank-details");
+  },
+
+  /**
+   * Any IBAN change resets `verified` to false server-side — verification is a
+   * manual finance step against the specific account number. The mock applies
+   * the same rule so the two modes can't drift.
+   */
+  async updateBankDetails(input: { iban: string; accountHolderName: string }): Promise<BankDetails> {
+    const iban = normalizeIban(input.iban);
+    const body = { iban, accountHolderName: input.accountHolderName.trim() };
+    if (USE_MOCK) {
+      await delay();
+      if (!isValidIban(iban)) {
+        throw new ApiError(422, "رقم الآيبان غير صحيح", "INVALID_IBAN");
+      }
+      return saveMockBankDetails(body);
+    }
+    return http("/me/bank-details", { method: "PUT", body: JSON.stringify(body) });
+  },
+
+  // ---- Wallet -----------------------------------------------------------
+  async getWallet(): Promise<WalletSummary> {
+    if (USE_MOCK) {
+      await delay();
+      return buildWallet();
+    }
+    return http("/wallet");
+  },
+
+  /**
+   * Cursor pagination: `before` is the `createdAt` of the last row already
+   * loaded, so the feed can't skip or duplicate rows when a new entry lands
+   * mid-scroll the way an offset would.
+   */
+  async listPartnerLedgerEntries(params: { limit?: number; before?: string } = {}): Promise<PartnerLedgerEntry[]> {
+    if (USE_MOCK) {
+      await delay();
+      return readMockLedger(params);
+    }
+    const qs = new URLSearchParams();
+    if (params.limit) qs.set("limit", String(params.limit));
+    if (params.before) qs.set("before", params.before);
+    return httpList(`/wallet/ledger${qs.size ? `?${qs}` : ""}`);
+  },
+
+  // ---- Payouts ----------------------------------------------------------
+  async listPayouts(params: { limit?: number } = {}): Promise<PartnerPayout[]> {
+    if (USE_MOCK) {
+      await delay();
+      return readMockPayouts(params);
+    }
+    return httpList(`/payouts${params.limit ? `?limit=${params.limit}` : ""}`);
+  },
+
+  async getPayout(id: string): Promise<PartnerPayoutDetail> {
+    if (USE_MOCK) {
+      await delay();
+      const p = readMockPayout(id);
+      if (!p) throw new ApiError(404, "Payout not found");
+      return p;
+    }
+    return http(`/payouts/${id}`);
   },
 
   // ---- Calendar ---------------------------------------------------------

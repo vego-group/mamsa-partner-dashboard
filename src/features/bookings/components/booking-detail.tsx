@@ -315,9 +315,15 @@ export function BookingDetail({
       <GuestHeader booking={booking} />
       <DetailGrid booking={booking} locale={locale} />
 
-      <div className="my-4 flex flex-wrap gap-2">
-        <Chip tone="bg-status-approved/15 text-status-approved">{t.bookingStatus[booking.status]}</Chip>
-        {booking.status !== "cancelled" && <Chip tone="bg-status-approved/15 text-status-approved">{b.paid}</Chip>}
+      <div className="my-4 flex flex-wrap items-center gap-2">
+        {/* Tone comes from the one badge system — a hardcoded green here would
+            paint an unpaid booking as if it were confirmed. */}
+        <BookingBadge status={booking.status} />
+        {booking.status === "pending_payment" ? (
+          <Chip tone="bg-status-pending/15 text-status-pending">{b.awaitingPayment}</Chip>
+        ) : booking.status !== "cancelled" ? (
+          <Chip tone="bg-status-approved/15 text-status-approved">{b.paid}</Chip>
+        ) : null}
       </div>
 
       {booking.notes && <NotesCard label={b.notes} text={booking.notes} />}
@@ -363,7 +369,7 @@ function DetailGrid({
 }: {
   booking: Booking;
   locale: "ar" | "en";
-  only?: ("duration" | "total")[];
+  only?: ("duration" | "total" | "netBase" | "vat" | "share")[];
 }) {
   const { t } = useLocale();
   const b = t.bookings;
@@ -374,8 +380,13 @@ function DetailGrid({
     { key: "checkout", label: b.checkOut, value: formatDateShort(booking.checkOut, locale) },
     { key: "duration", label: b.duration, value: b.nights(booking.nights) },
     { key: "total", label: b.total, value: <MoneyText amount={booking.financials.total} /> },
+    // The total is VAT-inclusive, so the base and the tax are shown next to it
+    // rather than leaving the partner to work out why their share is smaller.
+    { key: "netBase", label: t.pricing.netBase, value: <MoneyText amount={booking.financials.netBase} precise /> },
+    { key: "vat", label: t.pricing.vat, value: <MoneyText amount={booking.financials.vat} precise /> },
+    { key: "share", label: b.yourShare, value: <MoneyText amount={booking.financials.partnerShare} precise /> },
   ];
-  const rows = only ? all.filter((r) => only.includes(r.key as "duration" | "total")) : all;
+  const rows = only ? all.filter((r) => only.includes(r.key as NonNullable<typeof only>[number])) : all;
   return (
     <div className="mt-5 grid grid-cols-2 gap-3">
       {rows.map((r) => (

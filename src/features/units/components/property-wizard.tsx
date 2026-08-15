@@ -20,6 +20,7 @@ import type { Locale } from "@/lib/i18n";
 import type { Amenity, CancellationPolicyName, PropertyType, Unit, UnitCreateInput } from "@/types";
 import { isInsideSaudi, type LatLng } from "@/features/units/lib/geo";
 import { FileUploadRow, type UploadedFile } from "@/features/units/components/file-upload";
+import { PriceBreakdown } from "@/features/units/components/price-breakdown";
 import {
   X,
   Check,
@@ -457,10 +458,13 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                       options={(["apartment", "studio", "villa"] as const).map((v) => ({ value: v, label: t.propertyType[v] }))} />
                   </div>
                   <div>
-                    <FieldLabel required>{w.nightPrice}</FieldLabel>
+                    <FieldLabel required>{t.pricing.priceInclVat}</FieldLabel>
                     <TextInput value={price} onChange={setPrice} placeholder="0" dir="ltr" type="number" />
+                    <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">{t.pricing.priceHelper}</p>
                   </div>
                 </div>
+                {/* Live take-home beside the input — updates as the partner types. */}
+                <PriceBreakdown gross={Number(price) || 0} className="mt-4" />
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Stepper label={w.bedrooms} value={bedrooms} onChange={setBedrooms} min={0} />
                   {/* Ranges mirror the backend's submit validation (beds 1–20, bathrooms 1–10) */}

@@ -1,4 +1,4 @@
-import type { CancellationPolicyName } from "@/types";
+import type { BookingStatus, CancellationPolicyName } from "@/types";
 
 /**
  * Business constants — resolved decisions. Single source; never inline these.
@@ -7,6 +7,37 @@ import type { CancellationPolicyName } from "@/types";
 /** Mamsa commission = 2% of booking total. Partner share = 98%. */
 export const COMMISSION_RATE = 0.02;
 export const PARTNER_SHARE_RATE = 1 - COMMISSION_RATE;
+
+/** Saudi VAT. */
+export const VAT_RATE = 0.15;
+
+/** Balance a partner must reach before a monthly transfer is executed (SAR). */
+export const PAYOUT_MIN_BALANCE = 2000;
+
+/** Saudi IBAN shape: SA + 22 digits. Shape only — see `isValidIban` for the checksum. */
+export const IBAN_REGEX = /^SA\d{22}$/;
+
+/**
+ * `/me/bank-details` is a STAGING-ONLY stub: there is no bank_details table, it
+ * persists nothing, and it 404s on production. Off by default so a production
+ * build never renders or links to the screen — a 404 there is correct today.
+ *
+ * The IBAN that actually reaches the partner record is the one written by
+ * PUT /me/company-docs. Flip this on only where the endpoint exists.
+ */
+export const BANK_DETAILS_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BANK_DETAILS === "true";
+
+/**
+ * Has this booking actually produced money for the partner?
+ *
+ * `pending_payment` means the guest hasn't paid yet, so its total is not revenue
+ * — counting it would overstate earnings. Do NOT re-inline this as
+ * `status !== "cancelled"`: that was equivalent only while `confirmed |
+ * completed | cancelled` was the whole union.
+ */
+export function isRevenueBearing(status: BookingStatus): boolean {
+  return status === "confirmed" || status === "completed";
+}
 
 /** Official review SLA — used verbatim in success screen + notifications. */
 export const REVIEW_SLA = { ar: "24–48 ساعة", en: "24–48 hours" } as const;

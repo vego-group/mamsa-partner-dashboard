@@ -22,10 +22,11 @@ import {
   List,
   ArrowRight,
   CheckCircle2,
+  Clock,
   XCircle,
 } from "lucide-react";
 
-const TABS: (BookingStatus | "all")[] = ["all", "confirmed", "completed", "cancelled"];
+const TABS: (BookingStatus | "all")[] = ["all", "pending_payment", "confirmed", "completed", "cancelled"];
 
 /** `useSearchParams` needs a Suspense boundary to keep this page prerenderable. */
 export default function BookingsPage() {
@@ -152,7 +153,8 @@ function BookingsView() {
   );
 }
 
-const fill: Record<BookingStatus, number> = { confirmed: 100, completed: 100, cancelled: 12 };
+/** Lifecycle progress bar on the card — unpaid is part-way, not a full booking yet. */
+const fill: Record<BookingStatus, number> = { pending_payment: 35, confirmed: 100, completed: 100, cancelled: 12 };
 
 function BookingCard({ booking: b, locale, onSelect }: { booking: Booking; locale: "ar" | "en"; onSelect: () => void }) {
   const { t } = useLocale();
@@ -207,6 +209,7 @@ function BookingCard({ booking: b, locale, onSelect }: { booking: Booking; local
 }
 
 const statusIcon: Record<BookingStatus, React.ReactNode> = {
+  pending_payment: <Clock className="h-4 w-4 text-status-pending" />,
   confirmed: <CheckCircle2 className="h-4 w-4 text-status-approved" />,
   completed: <CheckCircle2 className="h-4 w-4 text-blue-600" />,
   cancelled: <XCircle className="h-4 w-4 text-status-rejected" />,

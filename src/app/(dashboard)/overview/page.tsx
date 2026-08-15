@@ -18,6 +18,7 @@ import {
   avgRating,
   deriveTopProperties,
 } from "@/features/overview/lib/derive-metrics";
+import { WalletOverviewCard } from "@/features/wallet/components/wallet-overview-card";
 import { AlertTriangle, BarChart3, Star, TrendingDown, TrendingUp } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -113,6 +114,7 @@ export default function OverviewPage() {
 
       {/* KPI cards */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <WalletOverviewCard />
         <KpiCard
           label={t.overview.totalProperties}
           value={String(d.unitsCount)}

@@ -1,4 +1,5 @@
 import type { Booking, ReportsSummary, Unit } from "@/types";
+import { isRevenueBearing } from "@/lib/constants";
 
 /**
  * Frontend-derived presentation metrics (v1.2 contract note: deltas, sparklines
@@ -74,7 +75,7 @@ export interface TopProperty {
 export function deriveTopProperties(units: Unit[], bookings: Booking[], max = 5): TopProperty[] {
   const byUnit = new Map<string, TopProperty>();
   for (const b of bookings) {
-    if (b.status === "cancelled") continue;
+    if (!isRevenueBearing(b.status)) continue;
     const unit = units.find((u) => u.id === b.unitId);
     const row = byUnit.get(b.unitId) ?? {
       unitId: b.unitId,

@@ -1,15 +1,20 @@
-import { COMMISSION_RATE, PARTNER_SHARE_RATE } from "./constants";
+import { COMMISSION_RATE, PARTNER_SHARE_RATE, VAT_RATE } from "./constants";
 import type { BookingFinancials } from "@/types";
 import type { Locale } from "./i18n";
 
 /**
  * THE single money formatter. SAR only — never AED/USD.
  * Latin digits always, even in Arabic UI.
+ *
+ * `precise` keeps halalas. Whole SAR is right for KPI tiles and prices, but a
+ * ledger whose rows are each rounded to the nearest riyal visibly fails to add
+ * up to its own balance column — so anything reconciling passes `precise`.
  */
-export function formatCurrency(amount: number, locale: Locale = "ar"): string {
+export function formatCurrency(amount: number, locale: Locale = "ar", precise = false): string {
   const n = new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 0,
-  }).format(Math.round(amount));
+    minimumFractionDigits: precise ? 2 : 0,
+    maximumFractionDigits: precise ? 2 : 0,
+  }).format(precise ? amount : Math.round(amount));
   return locale === "ar" ? `${n} ر.س` : `SAR ${n}`;
 }
 
@@ -24,6 +29,18 @@ export function formatCompactCurrency(amount: number, locale: Locale = "ar"): st
     n = String(Math.round(amount));
   }
   return locale === "ar" ? `${n} ر.س` : `SAR ${n}`;
+}
+
+/**
+ * Compact money for a field the API may not send yet. Production still returns
+ * the pre-VAT-cutover reports shape, and `formatCompactCurrency(undefined)`
+ * would render "NaN ر.س" — an em dash is an empty state, NaN is a bug report.
+ */
+export function formatCompactCurrencyOptional(
+  amount: number | null | undefined,
+  locale: Locale = "ar",
+): string {
+  return amount == null || Number.isNaN(amount) ? "—" : formatCompactCurrency(amount, locale);
 }
 
 /** THE single date formatter — Gregorian DD/MM/YYYY, Latin digits. */
@@ -69,14 +86,45 @@ export function formatPhone(raw: string): string {
   return `+966 ${[a, b, c].filter(Boolean).join(" ")}`.trim();
 }
 
-/** Commission math — 2% platform, 98% partner. */
+/** Halalas are the smallest unit — every money figure settles at 2 decimals. */
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON * Math.abs(n)) * 100) / 100;
+}
+
+export interface PriceSplit {
+  gross: number; // what the guest pays, VAT included
+  netBase: number; // gross excluding VAT
+  vat: number; // 15%, remitted to ZATCA
+  commission: number; // 2% of netBase, Mamsa
+  partnerShare: number; // what the partner keeps
+}
+
+/**
+ * THE single price decomposition. The partner enters a GROSS, VAT-inclusive
+ * price — what the guest sees is what the guest pays — and everything else is
+ * carved out of it.
+ *
+ * `partnerShare` is computed by SUBTRACTION, never `netBase * 0.98`. Two
+ * independently rounded percentages of the same base do not have to add back
+ * up to it; subtracting the rounded commission does, which is what keeps
+ * `commission + partnerShare + vat === gross` true at every value.
+ *
+ * The returned `gross` is the input rounded to 2 decimals — the invariant is
+ * stated against that, since a 3-decimal input has no exact halala split.
+ */
+export function splitPrice(gross: number): PriceSplit {
+  const g = round2(gross);
+  const netBase = round2(g / (1 + VAT_RATE));
+  const vat = round2(g - netBase);
+  const commission = round2(netBase * COMMISSION_RATE);
+  const partnerShare = round2(netBase - commission);
+  return { gross: g, netBase, vat, commission, partnerShare };
+}
+
+/** Booking money, from the gross total the guest paid. */
 export function computeFinancials(total: number): BookingFinancials {
-  const commission = Math.round(total * COMMISSION_RATE);
-  return {
-    total,
-    commission,
-    partnerShare: total - commission,
-  };
+  const { gross, netBase, vat, commission, partnerShare } = splitPrice(total);
+  return { total: gross, netBase, vat, commission, partnerShare };
 }
 
 export { COMMISSION_RATE, PARTNER_SHARE_RATE };
