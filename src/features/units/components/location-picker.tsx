@@ -82,12 +82,19 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  // Distinct from `searchError`: the geocoder answered, it just knows nothing
+  // about this address. Nominatim has no Saudi National Address data, so short
+  // codes and building numbers always come back empty — that's a dead end for
+  // the search box, not a failure, and the map is the way through.
+  const [noMatch, setNoMatch] = useState(false);
   const [reverseLoading, setReverseLoading] = useState(false);
   const [outsideBounds, setOutsideBounds] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   async function commitPoint(p: LatLng) {
     setResults([]);
+    // They took the hint and pinned it themselves — stop nagging.
+    setNoMatch(false);
     if (!isInsideSaudi(p)) {
       setOutsideBounds(true);
       onChange(p, null);
@@ -105,10 +112,11 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setSearching(true);
     setSearchError(null);
+    setNoMatch(false);
     try {
       const rows = await geocodeSearch(query.trim(), lang);
       setResults(rows);
-      if (rows.length === 0) setSearchError(w.noResults);
+      setNoMatch(rows.length === 0);
     } catch {
       setSearchError(w.geocodeError);
     } finally {
@@ -133,7 +141,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), runSearch())}
-              placeholder={w.fullAddressPh}
+              placeholder={w.searchPh}
               className="w-full rounded-2xl border border-line bg-cream/40 px-4 py-3 text-sm outline-none placeholder:text-ink-faint focus:border-brand focus:bg-white"
             />
           </div>
@@ -167,6 +175,18 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
       </div>
 
       {searchError && <p className="text-xs text-status-rejected">{searchError}</p>}
+
+      {/* Not an error state — a signpost. Red text next to an empty map reads as
+          "something broke"; the partner needs to know the map still works. */}
+      {noMatch && (
+        <div className="flex items-start gap-3 rounded-2xl border border-line bg-cream/60 px-4 py-3">
+          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" />
+          <div>
+            <div className="text-sm font-semibold text-ink">{w.noMatchTitle}</div>
+            <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">{w.noMatchHint}</p>
+          </div>
+        </div>
+      )}
 
       {/* Map */}
       <div className="relative h-72 overflow-hidden rounded-2xl border border-line">

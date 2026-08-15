@@ -96,10 +96,20 @@ export function BankDetailsForm() {
     }
   }
 
-  /** Changing a saved IBAN costs the partner their verified status — say so first. */
+  /**
+   * Editing a VERIFIED account costs the partner that status — say so first.
+   *
+   * Keyed on `verified && dirty`, not on `ibanChanged`: the server resets
+   * verification on any real edit, holder name included (finance verifies the
+   * name as much as the number, because a bank rejects a transfer whose
+   * beneficiary name doesn't match). Warning only on the IBAN let a partner
+   * lose verification silently by fixing their name. An unverified account has
+   * nothing to lose — an edit there just clears any rejection — so it saves
+   * straight through.
+   */
   function submit() {
     if (!parsed.success) return;
-    if (saved && ibanChanged) return setConfirming(true);
+    if (saved?.verified && dirty) return setConfirming(true);
     void commit();
   }
 

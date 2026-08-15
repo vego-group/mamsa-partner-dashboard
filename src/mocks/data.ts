@@ -392,6 +392,11 @@ export function buildReportsSummary(from: string, to: string): ReportsSummary {
     grossRevenue,
     netRevenue,
     vat,
+    // The seeds are all modern bookings — no abolished service/cleaning fees on
+    // any of them — so this is 0 and the tile stays hidden, which is the state
+    // every real range produces today. Summed rather than hardcoded so it
+    // follows if a fee-era booking is ever seeded.
+    fees: round2(grossRevenue - netRevenue - vat),
     bookingsCount: inRange.length,
     commission,
     netProfit,
@@ -462,20 +467,38 @@ export function mockIcalExportUrl(unitId: string): string {
 export const mockCompanyDocs: CompanyDocs = {
   cr: "",
   iban: "",
+  nationalIdFileId: null,
   authorizationLetterFileId: null,
   vatCertificateFileId: null,
   operatorLicenseFileId: null,
   complete: false,
 };
 
+/**
+ * Completeness is per partner TYPE — the server evaluates a different required
+ * set for each, so a single rule here would let one type look complete on the
+ * other's evidence.
+ *
+ * An individual needs the ID NUMBER *and* its scan: the number alone is what a
+ * reviewer cannot check, which is the whole reason the scan is required.
+ */
 function recomputeCompanyDocsComplete() {
+  // The BACKEND still reads the legacy `partner_details.iban` written by
+  // PUT /me/company-docs — there is no bank_details table yet. Do NOT repoint
+  // this at /me/bank-details: that endpoint persists nothing, so a partner
+  // would stop being able to submit units entirely.
+  const hasIban = isValidIban(mockCompanyDocs.iban);
+
+  if (mockPartner.accountType === "individual") {
+    mockCompanyDocs.complete = Boolean(
+      mockPartner.verificationId && mockCompanyDocs.nationalIdFileId && hasIban,
+    );
+    return;
+  }
+
   mockCompanyDocs.complete = Boolean(
     /^\d{10}$/.test(mockCompanyDocs.cr) &&
-      // The BACKEND still reads the legacy `partner_details.iban` written by
-      // PUT /me/company-docs — there is no bank_details table yet. Do NOT
-      // repoint this at /me/bank-details: that endpoint persists nothing, so
-      // a company would stop being able to submit units entirely.
-      isValidIban(mockCompanyDocs.iban) &&
+      hasIban &&
       mockCompanyDocs.authorizationLetterFileId &&
       mockCompanyDocs.vatCertificateFileId &&
       mockCompanyDocs.operatorLicenseFileId,
@@ -518,26 +541,34 @@ export function readMockBankDetails(): BankDetails | null {
 }
 
 /**
- * Mirrors the server rule exactly: ANY change to the IBAN drops verification
- * back to pending and clears the previous rejection. Editing only the holder
- * name leaves an already-verified account verified.
+ * Mirrors the server rule exactly: ANY real edit — the IBAN *or* the holder
+ * name — drops verification back to pending and clears the previous rejection.
+ *
+ * The holder name counts because a bank rejects a transfer whose beneficiary
+ * name doesn't match, so finance verified the name as much as the number. It
+ * also closes the trap where a partner rejected FOR a name mismatch fixed the
+ * name and stayed rejected forever.
  */
 export function saveMockBankDetails(input: { iban: string; accountHolderName: string }): BankDetails {
   const iban = normalizeIban(input.iban);
-  const ibanChanged = iban !== mockBankDetails.iban;
+  const accountHolderName = input.accountHolderName.trim();
+  const changed =
+    iban !== mockBankDetails.iban || accountHolderName !== mockBankDetails.accountHolderName;
+
+  // An identical re-save is a no-op. Without this a partner could strip their
+  // own verified badge just by pressing save twice.
+  if (!changed) return { ...mockBankDetails };
 
   mockBankDetails.iban = iban;
-  mockBankDetails.accountHolderName = input.accountHolderName.trim();
+  mockBankDetails.accountHolderName = accountHolderName;
   // Server-derived. The staging stub returns the same name for every IBAN, so
   // the mock does too — pretending to resolve real bank codes here would make
   // mock mode look more capable than the endpoint actually is.
   mockBankDetails.bankName = iban ? STUB_BANK_NAME : null;
   mockBankDetails.updatedAt = new Date().toISOString();
-  if (ibanChanged) {
-    mockBankDetails.verified = false;
-    mockBankDetails.verifiedAt = null;
-    mockBankDetails.rejectionReason = null;
-  }
+  mockBankDetails.verified = false;
+  mockBankDetails.verifiedAt = null;
+  mockBankDetails.rejectionReason = null;
 
   recomputeCompanyDocsComplete();
   return { ...mockBankDetails };

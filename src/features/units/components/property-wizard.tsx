@@ -555,7 +555,8 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
               </Section>
 
               <Section label={w.cancellationPolicy}>
-                <FieldLabel required>{w.cancellationPolicy}</FieldLabel>
+                <FieldLabel required>{w.choosePolicy}</FieldLabel>
+                <p className="mb-3 text-xs leading-relaxed text-ink-muted">{w.refundLegend}</p>
                 <div className="grid gap-3 sm:grid-cols-3">
                   {CANCELLATION_POLICIES.map((preset) => (
                     <PolicyCard
@@ -564,6 +565,8 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                       locale={locale}
                       selected={cancellationPolicy === preset.name}
                       onSelect={() => setCancellationPolicy(preset.name)}
+                      refundOf={w.refundOf}
+                      noRefund={w.noRefund}
                     />
                   ))}
                 </div>
@@ -932,16 +935,27 @@ function SelectInput({
   );
 }
 
+/** Refund size read at a glance: full/near-full green, partial orange, nothing grey. */
+function refundTone(percent: number) {
+  if (percent >= 75) return "bg-status-approved/10 text-status-approved";
+  if (percent > 0) return "bg-status-pending/15 text-status-pending";
+  return "bg-cream-dark text-ink-faint";
+}
+
 function PolicyCard({
   preset,
   locale,
   selected,
   onSelect,
+  refundOf,
+  noRefund,
 }: {
   preset: CancellationPolicyPreset;
   locale: Locale;
   selected: boolean;
   onSelect: () => void;
+  refundOf: (n: number) => string;
+  noRefund: string;
 }) {
   const label = locale === "ar" ? preset.labelAr : preset.labelEn;
   const description = locale === "ar" ? preset.descriptionAr : preset.descriptionEn;
@@ -954,18 +968,22 @@ function PolicyCard({
         selected ? "border-brand bg-brand-soft" : "border-line bg-white hover:bg-cream",
       )}
     >
-      <div className="flex w-full items-center justify-between">
+      <div className="flex w-full items-center justify-between gap-2">
         <span className="font-bold text-ink">{label}</span>
         {selected && <Check className="h-4 w-4 shrink-0 text-brand" />}
       </div>
-      <p className="text-xs text-ink-muted">{description}</p>
-      <div className="flex flex-wrap gap-1.5">
+      <p className="text-xs leading-relaxed text-ink-muted">{description}</p>
+      {/* Each row spells out the number: when the guest cancels → what they get back. */}
+      <dl className="mt-1 w-full space-y-1.5 border-t border-line/70 pt-3">
         {preset.tiers.map((tier) => (
-          <span key={tier.minDaysBeforeCheckIn} className="rounded-full bg-cream-dark px-2 py-0.5 text-xs font-semibold text-ink">
-            {tier.refundPercent}%
-          </span>
+          <div key={tier.minDaysBeforeCheckIn} className="flex items-center justify-between gap-2">
+            <dt className="text-xs leading-snug text-ink-muted">{locale === "ar" ? tier.labelAr : tier.labelEn}</dt>
+            <dd className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", refundTone(tier.refundPercent))}>
+              {tier.refundPercent === 0 ? noRefund : refundOf(tier.refundPercent)}
+            </dd>
+          </div>
         ))}
-      </div>
+      </dl>
     </button>
   );
 }

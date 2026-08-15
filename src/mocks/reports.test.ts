@@ -15,16 +15,35 @@ const RANGES: [string, string][] = [
 ];
 
 describe("reports VAT fields", () => {
-  it("keeps netRevenue + vat === grossRevenue in every range", () => {
+  /**
+   * The invariant is THREE-way, not two. `fees` (the abolished service and
+   * cleaning charges) is the third component of gross, and reading the
+   * remainder as tax is exactly how a 19.6% "VAT rate" gets onto a screen.
+   */
+  it("keeps netRevenue + vat + fees === grossRevenue in every range", () => {
     for (const [from, to] of RANGES) {
       const s = buildReportsSummary(from, to);
-      expect(round2(s.netRevenue! + s.vat!), `${from}..${to}`).toBe(s.grossRevenue);
+      expect(round2(s.netRevenue! + s.vat! + (s.fees ?? 0)), `${from}..${to}`).toBe(s.grossRevenue);
     }
   });
 
   it("matches the arithmetic verified live on staging", () => {
-    // GET /reports/summary — netRevenue 116536 + vat 7298.2 = grossRevenue 123834.2
-    expect(round2(116536 + 7298.2)).toBe(123834.2);
+    // GET /reports/summary, partner 5 — the three components of gross.
+    expect(round2(100260 + 7298.2 + 16276)).toBe(123834.2);
+    // Commission is 2% of the FEE-EXCLUSIVE net, not of net+fees.
+    expect(round2(100260 * 0.02)).toBe(2005.2);
+    // netProfit is that net minus commission — and equals the wallet balance.
+    expect(round2(100260 - 2005.2)).toBe(98254.8);
+  });
+
+  /**
+   * 🔴 `netRevenue` CHANGED VALUE on the same range: it used to absorb the fees
+   * (116,536 = 100,260 + 16,276) and now reports the subtotal alone. Anything
+   * that treats the old figure as still current is reading a stale contract.
+   */
+  it("no longer folds fees into netRevenue", () => {
+    expect(round2(100260 + 16276)).toBe(116536); // the pre-split figure
+    expect(116536).not.toBe(100260);
   });
 
   it("does NOT conflate netRevenue with netProfit", () => {
@@ -33,6 +52,21 @@ describe("reports VAT fields", () => {
     expect(s.netRevenue).not.toBe(s.netProfit);
     expect(round2(s.netRevenue! - s.commission)).toBe(s.netProfit);
     expect(s.netProfit).toBeLessThan(s.netRevenue!);
+  });
+
+  it("hides the fees tile at zero but renders it when there are fees", () => {
+    const page = readFileSync(resolve(process.cwd(), "src/app/(dashboard)/reports/page.tsx"), "utf8");
+    // Guarded, so a permanent "0 ر.س" never sits beside the live figures...
+    expect(page).toMatch(/\{d\.fees \?/);
+    // ...but it IS rendered, so a fee-era range can't leave gross unexplained.
+    expect(page).toContain("formatCompactCurrency(d.fees, locale)");
+  });
+
+  it("labels fees as abolished, not as a live charge, in both locales", () => {
+    // A partner seeing "service fees" with no qualifier reads it as an active
+    // deduction Mamsa is still taking.
+    expect(dict.ar.reports.fees).toMatch(/ملغاة/);
+    expect(dict.en.reports.fees).toMatch(/abolished/i);
   });
 
   it("labels the two as different questions in both locales", () => {

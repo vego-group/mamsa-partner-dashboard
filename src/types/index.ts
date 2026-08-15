@@ -71,6 +71,13 @@ export interface CompanyDocs {
   iban: string; // SA + 22 digits
   /** Accepted by the endpoint but NOT stored — no column yet, so reads come back empty. */
   accountHolderName?: string;
+  /**
+   * The individual partner's ID scan. Lives on this endpoint despite the name:
+   * registration writes the same record, and there is no per-type endpoint.
+   * Uploaded with `kind: "company_doc"` — the presign kinds are a fixed set of
+   * three and this is the one identity scans are stored under.
+   */
+  nationalIdFileId: string | null;
   authorizationLetterFileId: string | null;
   vatCertificateFileId: string | null;
   operatorLicenseFileId: string | null;
@@ -383,9 +390,20 @@ export interface ReportsSummary {
    * Optional until the production cutover.
    */
   vat?: number;
+  /**
+   * Abolished service + cleaning fees the guest paid. Exists so the tiles add
+   * up: `netRevenue + vat + fees === grossRevenue`, always. Without it the
+   * remainder is unexplained on screen and reads as a wrong VAT rate — the
+   * exact mistake we made reading a 19.6% gap as tax.
+   *
+   * `0` on every modern range; only non-zero on ranges reaching back into the
+   * fee era, which is why the tile hides itself at zero. Optional because it
+   * post-dates the rest of the shape.
+   */
+  fees?: number;
   bookingsCount: number;
   commission: number; // 2% of netRevenue
-  netProfit: number; // revenue minus COMMISSION — the partner's share
+  netProfit: number; // netRevenue minus COMMISSION — SUM(partner_share), the wallet's own figure
   revenueByMonth: { month: string; amount: number }[];
   bookingsByMonth: { month: string; count: number }[];
   perUnit: { unitId: string; unitName: string; bookings: number; revenue: number }[];

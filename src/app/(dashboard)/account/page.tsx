@@ -9,6 +9,7 @@ import { LoadingSkeleton, ErrorState } from "@/components/shared/states";
 import { FileUploadRow, type UploadedFile } from "@/features/units/components/file-upload";
 import { BankDetailsForm } from "@/features/account/components/bank-details-form";
 import { PayoutAccountCard } from "@/features/account/components/payout-account-card";
+import { IdentityDocumentCard } from "@/features/account/components/identity-document-card";
 import { isValidIban, normalizeIban } from "@/lib/iban";
 import { BANK_DETAILS_ENABLED } from "@/lib/constants";
 import { formatPhone } from "@/lib/format";
@@ -45,7 +46,17 @@ export default function AccountPage() {
       {/* The payout IBAN is NOT company-only — PUT /me/company-docs persists it
           for any partner type. Companies enter it alongside their documents
           below; individuals get the bank fields on their own. */}
-      {data.accountType === "company" ? <CompanyDocsCard /> : <PayoutAccountCard />}
+      {data.accountType === "company" ?
+        <CompanyDocsCard />
+      : <>
+          <PayoutAccountCard />
+          {/* Individuals only: a company's identity evidence is its CR, which
+              CompanyDocsCard already collects. Shown even once a scan is on
+              file so a partner can replace an unreadable one — hiding it would
+              leave them with a rejection they cannot act on. */}
+          <IdentityDocumentCard partner={data} />
+        </>
+      }
     </div>
   );
 }

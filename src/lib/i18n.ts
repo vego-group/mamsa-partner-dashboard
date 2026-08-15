@@ -114,6 +114,7 @@ export const dict: Record<Locale, Dict> = {
       grossRevenue: "إجمالي الإيرادات (شامل الضريبة)",
       netRevenue: "الإيراد غير شامل الضريبة",
       vat: "ضريبة القيمة المضافة (15%)",
+      fees: "رسوم الخدمة والتنظيف (ملغاة)",
       commission: "عمولة مَمسَى (2%)",
       netProfit: "صافي الربح (بعد العمولة)",
       revenueTrend: "اتجاه الإيرادات",
@@ -190,6 +191,15 @@ export const dict: Record<Locale, Dict> = {
       savePayoutAccount: "حفظ الحساب البنكي",
       payoutAccountSaved: "تم حفظ الحساب البنكي",
       ibanInvalid: "رقم الآيبان غير صحيح (يبدأ بـ SA ثم 22 رقمًا)",
+      identityDocTitle: "صورة الهوية الوطنية",
+      identityDocSubtitle: "نسخة واضحة من هويتك، يراجعها فريق مَمسَى للتحقق من حسابك قبل تحويل أرباحك.",
+      identityDocFileLabel: "صورة الهوية أو الإقامة",
+      identityDocHint: "صورة (JPG أو PNG) أو ملف PDF، بحد أقصى 10 ميجابايت.",
+      identityDocNumber: "رقم الهوية المسجَّل",
+      identityDocMissing: "لم تُرفع صورة الهوية بعد — لا يمكن توثيق حسابك بدونها.",
+      identityDocOnFile: "صورة الهوية مُسجَّلة على حسابك.",
+      identityDocSave: "حفظ صورة الهوية",
+      identityDocSaved: "تم حفظ صورة الهوية",
       ibanMovedNote: "رقم الآيبان انتقل إلى قسم «بيانات الحساب البنكي» بالأعلى.",
     },
     bank: {
@@ -204,8 +214,8 @@ export const dict: Record<Locale, Dict> = {
       missing: "أضف حسابك البنكي لاستلام أرباحك",
       rejected: "تم رفض توثيق الحساب",
       rejectedFix: "يرجى تصحيح البيانات وإعادة الإرسال.",
-      changeWarning: "تغيير رقم الآيبان سيتطلب إعادة توثيق الحساب، ولن تُنفَّذ أي حوالة حتى يتم التوثيق.",
-      changeTitle: "تأكيد تغيير الآيبان",
+      changeWarning: "تعديل بيانات الحساب — رقم الآيبان أو اسم صاحب الحساب — سيتطلب إعادة توثيقه، ولن تُنفَّذ أي حوالة حتى يتم التوثيق.",
+      changeTitle: "تأكيد تعديل الحساب",
       confirmChange: "تأكيد التغيير",
       invalidIban: "رقم الآيبان غير صحيح",
       holderRequired: "اسم صاحب الحساب مطلوب",
@@ -470,6 +480,10 @@ export const dict: Record<Locale, Dict> = {
       checkInTime: "وقت الدخول",
       checkOutTime: "وقت الخروج",
       cancellationPolicy: "سياسة الإلغاء",
+      choosePolicy: "اختر سياسة الإلغاء",
+      refundLegend: "النِّسب أدناه هي ما يُسترد للضيف حسب موعد إلغائه قبل تاريخ الوصول — الباقي يبقى لك.",
+      refundOf: (n: number) => `استرداد ${n}%`,
+      noRefund: "بدون استرداد",
       cancellationLockedNote: "بعد تسجيل الوصول، يُقفل الإلغاء تلقائيًا في جميع السياسات.",
       // Step 3
       s3Title: "الموقع",
@@ -478,8 +492,12 @@ export const dict: Record<Locale, Dict> = {
       fullAddress: "العنوان الكامل للعقار",
       fullAddressPh: "الشارع، الحي، المدينة، المنطقة",
       pinOnMap: "تحديد الموقع على الخريطة",
-      enterAddressToPin: "أدخل العنوان أعلاه لتحديد الموقع",
+      enterAddressToPin: "اضغط على الخريطة لتحديد موقع العقار",
       saudiOnly: "داخل السعودية فقط",
+      searchPh: "ابحث بالحي أو المدينة — مثال: حي الرابية، الرياض",
+      noMatchTitle: "لم نعثر على هذا العنوان",
+      noMatchHint:
+        "حدّد موقع العقار بالضغط مباشرة على الخريطة بالأسفل. البحث لا يدعم العنوان الوطني المختصر (مثل RUKC8514) ولا أرقام المباني.",
       locationPinned: "تم تحديد الموقع",
       locationConfirmed: "تم تأكيد الموقع",
       saudiArabia: "المملكة العربية السعودية",
@@ -690,6 +708,7 @@ export const dict: Record<Locale, Dict> = {
       grossRevenue: "Total Revenue (VAT incl.)",
       netRevenue: "Revenue excl. VAT",
       vat: "VAT (15%)",
+      fees: "Service & Cleaning Fees (abolished)",
       commission: "Mamsa Commission (2%)",
       netProfit: "Net Profit (after commission)",
       revenueTrend: "Revenue Trend",
@@ -766,6 +785,15 @@ export const dict: Record<Locale, Dict> = {
       savePayoutAccount: "Save Bank Account",
       payoutAccountSaved: "Bank account saved",
       ibanInvalid: "Invalid IBAN (must start with SA, then 22 digits)",
+      identityDocTitle: "National ID Scan",
+      identityDocSubtitle: "A clear copy of your ID. Mamsa's team reviews it to verify your account before transferring your earnings.",
+      identityDocFileLabel: "National ID or Iqama scan",
+      identityDocHint: "An image (JPG or PNG) or a PDF, up to 10 MB.",
+      identityDocNumber: "ID number on file",
+      identityDocMissing: "No ID scan uploaded yet — your account cannot be verified without it.",
+      identityDocOnFile: "Your ID scan is on file.",
+      identityDocSave: "Save ID scan",
+      identityDocSaved: "ID scan saved",
       ibanMovedNote: "The IBAN has moved to the “Bank Account Details” section above.",
     },
     bank: {
@@ -780,8 +808,8 @@ export const dict: Record<Locale, Dict> = {
       missing: "Add your bank account to receive your earnings",
       rejected: "Bank account verification was rejected",
       rejectedFix: "Please correct the details and resubmit.",
-      changeWarning: "Changing the IBAN will require the account to be verified again, and no transfer will be executed until it is.",
-      changeTitle: "Confirm IBAN Change",
+      changeWarning: "Editing the account details — the IBAN or the account holder name — will require it to be verified again, and no transfer will be executed until it is.",
+      changeTitle: "Confirm Account Change",
       confirmChange: "Confirm Change",
       invalidIban: "Invalid IBAN",
       holderRequired: "Account holder name is required",
@@ -1046,6 +1074,10 @@ export const dict: Record<Locale, Dict> = {
       checkInTime: "Check-in Time",
       checkOutTime: "Check-out Time",
       cancellationPolicy: "Cancellation Policy",
+      choosePolicy: "Choose a cancellation policy",
+      refundLegend: "The percentages below are what the guest gets back depending on when they cancel before check-in — you keep the rest.",
+      refundOf: (n: number) => `${n}% refund`,
+      noRefund: "No refund",
       cancellationLockedNote: "Cancellation locks automatically after check-in, across all presets.",
       // Step 3
       s3Title: "Location",
@@ -1054,8 +1086,12 @@ export const dict: Record<Locale, Dict> = {
       fullAddress: "Full Property Address",
       fullAddressPh: "Street, district, city, region",
       pinOnMap: "Pin location on map",
-      enterAddressToPin: "Enter the address above to pin location",
+      enterAddressToPin: "Click the map to pin your property",
       saudiOnly: "Saudi Arabia only",
+      searchPh: "Search by district or city — e.g. Al Rabiah, Riyadh",
+      noMatchTitle: "We couldn't find that address",
+      noMatchHint:
+        "Pin your property by clicking directly on the map below. The search doesn't support National Address short codes (like RUKC8514) or building numbers.",
       locationPinned: "Location pinned",
       locationConfirmed: "Location confirmed",
       saudiArabia: "Saudi Arabia",
@@ -1257,6 +1293,7 @@ export type Dict = {
     grossRevenue: string;
     netRevenue: string;
     vat: string;
+    fees: string;
     commission: string;
     netProfit: string;
     revenueTrend: string;
@@ -1333,6 +1370,15 @@ export type Dict = {
     savePayoutAccount: string;
     payoutAccountSaved: string;
     ibanInvalid: string;
+    identityDocTitle: string;
+    identityDocSubtitle: string;
+    identityDocFileLabel: string;
+    identityDocHint: string;
+    identityDocNumber: string;
+    identityDocMissing: string;
+    identityDocOnFile: string;
+    identityDocSave: string;
+    identityDocSaved: string;
     ibanMovedNote: string;
   };
   bank: {
@@ -1604,6 +1650,10 @@ export type Dict = {
     checkInTime: string;
     checkOutTime: string;
     cancellationPolicy: string;
+    choosePolicy: string;
+    refundLegend: string;
+    refundOf: (n: number) => string;
+    noRefund: string;
     cancellationLockedNote: string;
     s3Title: string;
     s3Sub: string;
@@ -1613,6 +1663,9 @@ export type Dict = {
     pinOnMap: string;
     enterAddressToPin: string;
     saudiOnly: string;
+    searchPh: string;
+    noMatchTitle: string;
+    noMatchHint: string;
     locationPinned: string;
     locationConfirmed: string;
     saudiArabia: string;

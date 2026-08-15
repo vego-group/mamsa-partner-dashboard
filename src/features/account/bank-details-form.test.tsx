@@ -48,9 +48,7 @@ describe("BankDetailsForm", () => {
     fireEvent.click(saveButton());
 
     // The consequence has to land BEFORE the change, not after.
-    expect(
-      await screen.findByText(/require the account to be verified again|إعادة توثيق الحساب/),
-    ).toBeTruthy();
+    expect(await screen.findByText(/verified again|إعادة توثيق/)).toBeTruthy();
     // Nothing is written until the partner confirms.
     expect(mockBankDetails.iban).toBe(VALID);
   });
@@ -69,14 +67,46 @@ describe("BankDetailsForm", () => {
     expect(mockBankDetails.verified).toBe(false);
   });
 
-  it("saves a holder-name-only edit with no dialog and no loss of verification", async () => {
+  /**
+   * The holder name is NOT a free edit: a bank rejects a transfer whose
+   * beneficiary name doesn't match, so the server resets verification on it too.
+   * Warning only on the IBAN let a partner lose their badge silently.
+   */
+  it("warns before a holder-name-only edit and drops verification once confirmed", async () => {
     render(<BankDetailsForm />);
     setValue(await screen.findByDisplayValue(seed.accountHolderName), "شركة ممسى للضيافة");
     await waitFor(() => expect(saveButton().disabled).toBe(false));
     fireEvent.click(saveButton());
 
+    expect(await screen.findByText(/verified again|إعادة توثيق/)).toBeTruthy();
+    // Nothing is written until the partner confirms.
+    expect(mockBankDetails.accountHolderName).toBe(seed.accountHolderName);
+
+    fireEvent.click(screen.getByRole("button", { name: /Confirm Change|تأكيد التغيير/ }));
+
     await waitFor(() => expect(mockBankDetails.accountHolderName).toBe("شركة ممسى للضيافة"));
-    // The IBAN didn't move, so verification must survive.
+    expect(mockBankDetails.verified).toBe(false);
+    expect(mockBankDetails.iban).toBe(VALID);
+  });
+
+  /** An unverified account has nothing to lose — an edit there saves straight through. */
+  it("saves without a dialog when the account is not yet verified", async () => {
+    Object.assign(mockBankDetails, { verified: false, verifiedAt: null });
+    render(<BankDetailsForm />);
+    setValue(await findIbanInput(), OTHER_VALID);
+    await waitFor(() => expect(saveButton().disabled).toBe(false));
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(mockBankDetails.iban).toBe(OTHER_VALID));
+    expect(screen.queryByText(/verified again|إعادة توثيق/)).toBeNull();
+  });
+
+  /** A no-op save must not strip the badge — the server treats it as no change. */
+  it("keeps verification when nothing was actually edited", async () => {
+    render(<BankDetailsForm />);
+    await findIbanInput();
+    saveMockBankDetails({ iban: VALID, accountHolderName: seed.accountHolderName });
+
     expect(mockBankDetails.verified).toBe(true);
   });
 

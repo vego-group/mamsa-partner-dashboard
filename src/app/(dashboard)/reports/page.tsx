@@ -148,6 +148,13 @@ export default function ReportsPage() {
             src/mocks/reports.test.ts. */}
         <Kpi label={t.reports.netRevenue} value={formatCompactCurrencyOptional(d.netRevenue, locale)} />
         <Kpi label={t.reports.vat} value={formatCompactCurrencyOptional(d.vat, locale)} />
+        {/* The abolished service + cleaning fees, and the reason the tiles add
+            up: netRevenue + vat + fees === grossRevenue. Zero on every modern
+            range, so it hides itself rather than parking a permanent 0 ر.س
+            beside the live figures — but it must appear on ranges that reach
+            the fee era, or the remainder is unexplained and the VAT tile reads
+            as the wrong rate. */}
+        {d.fees ? <Kpi label={t.reports.fees} value={formatCompactCurrency(d.fees, locale)} /> : null}
         <Kpi label={t.overview.totalBookings} value={String(d.bookingsCount)} delta={deltaPct(bookingCounts)} />
         <Kpi label={t.reports.commission} value={formatCompactCurrency(d.commission, locale)} />
         {/* Revenue minus COMMISSION — a different question from netRevenue above. */}
