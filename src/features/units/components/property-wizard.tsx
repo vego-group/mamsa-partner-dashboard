@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/cn";
 import type { Locale } from "@/lib/i18n";
 import type { Amenity, CancellationPolicyName, PropertyType, Unit, UnitCreateInput } from "@/types";
-import { isInsideSaudi, type LatLng } from "@/features/units/lib/geo";
+import { isInsideSaudi, isValidLatLng, type LatLng } from "@/features/units/lib/geo";
 import { FileUploadRow, type UploadedFile } from "@/features/units/components/file-upload";
 import { PriceBreakdown } from "@/features/units/components/price-breakdown";
 import {
@@ -134,8 +134,11 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
   );
 
   // Step 3
+  // A never-placed draft comes back with null (or absent) lat/lng, not 0 — a
+  // bare `!== 0` check let `{lat: null, lng: null}` through, and step 3 then
+  // handed that to Leaflet and crashed the wizard into the 500 boundary.
   const [location, setLocation] = useState<LatLng | null>(
-    existing && existing.lat !== 0 && existing.lng !== 0 ? { lat: existing.lat, lng: existing.lng } : null,
+    isValidLatLng(existing) ? { lat: existing.lat, lng: existing.lng } : null,
   );
   const [address, setAddress] = useState(existing?.address ?? "");
 
@@ -404,11 +407,27 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                   {partner.data?.accountType === "individual" ? (
                     <Section label={w.identityVerification}>
                       <FieldLabel info>{w.nationalId}</FieldLabel>
-                      <div className="flex items-center gap-2 rounded-2xl border border-line bg-cream/60 px-4 py-3 text-sm text-ink-muted">
-                        <span dir="ltr">{partner.data.verificationId}</span>
-                        <Check className="ms-auto h-4 w-4 text-status-approved" />
-                      </div>
-                      <p className="mt-1.5 text-xs text-ink-faint">{w.verificationIdNote}</p>
+                      {/* `verificationId` is null for partners onboarded via OTP without
+                          the registration step. Showing an empty box with the approved
+                          checkmark reads as "verified" — say it's missing instead. It
+                          doesn't block submission; only support can set it. */}
+                      {partner.data.verificationId ? (
+                        <>
+                          <div className="flex items-center gap-2 rounded-2xl border border-line bg-cream/60 px-4 py-3 text-sm text-ink-muted">
+                            <span dir="ltr">{partner.data.verificationId}</span>
+                            <Check className="ms-auto h-4 w-4 text-status-approved" />
+                          </div>
+                          <p className="mt-1.5 text-xs text-ink-faint">{w.verificationIdNote}</p>
+                        </>
+                      ) : (
+                        <div className="flex items-start gap-3 rounded-2xl border border-status-pending/40 bg-status-pending/10 px-4 py-3 text-sm">
+                          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-status-pending" />
+                          <div>
+                            <div className="font-semibold text-status-pending">{w.verificationIdMissing}</div>
+                            <p className="mt-0.5 text-ink-muted">{w.verificationIdMissingBody}</p>
+                          </div>
+                        </div>
+                      )}
                     </Section>
                   ) : (
                     <Section label={w.companyDetails}>

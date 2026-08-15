@@ -162,6 +162,7 @@ export const dict: Record<Locale, Dict> = {
       phoneNumber: "رقم الجوال (يُغيّر عبر OTP)",
       partnerType: "نوع الشريك",
       verificationId: "رقم الهوية / السجل التجاري",
+      verificationIdMissing: "غير مسجَّل — تواصل مع الدعم لإضافته",
       location: "الموقع",
       saveChanges: "حفظ التغييرات",
       profileSaved: "تم حفظ البيانات",
@@ -437,6 +438,8 @@ export const dict: Record<Locale, Dict> = {
       identityVerification: "التحقق من الهوية",
       nationalId: "رقم الهوية الوطنية / الإقامة",
       verificationIdNote: "مأخوذ من ملفك الشخصي — للتعديل تواصل مع الدعم",
+      verificationIdMissing: "لم يُسجَّل رقم الهوية على حسابك",
+      verificationIdMissingBody: "تواصل مع الدعم لإضافته. يمكنك متابعة إضافة العقار الآن.",
       companyDetails: "بيانات الشركة",
       companyDocsComplete: "بيانات استلام المدفوعات مكتملة ✓",
       companyDocsIncompleteTitle: "أكمل بيانات الشركة أولاً",
@@ -735,6 +738,7 @@ export const dict: Record<Locale, Dict> = {
       phoneNumber: "Phone Number (changed via OTP)",
       partnerType: "Partner Type",
       verificationId: "National ID / CR Number",
+      verificationIdMissing: "Not on file — contact support to add it",
       location: "Location",
       saveChanges: "Save Changes",
       profileSaved: "Changes saved",
@@ -1010,6 +1014,8 @@ export const dict: Record<Locale, Dict> = {
       identityVerification: "Identity Verification",
       nationalId: "National ID / Iqama Number",
       verificationIdNote: "Taken from your profile — contact support to change it",
+      verificationIdMissing: "No National ID on file",
+      verificationIdMissingBody: "Contact support to add it. You can continue adding your property now.",
       companyDetails: "Company Details",
       companyDocsComplete: "Payout details complete ✓",
       companyDocsIncompleteTitle: "Complete your company details first",
@@ -1299,6 +1305,7 @@ export type Dict = {
     phoneNumber: string;
     partnerType: string;
     verificationId: string;
+    verificationIdMissing: string;
     location: string;
     saveChanges: string;
     profileSaved: string;
@@ -1566,6 +1573,8 @@ export type Dict = {
     identityVerification: string;
     nationalId: string;
     verificationIdNote: string;
+    verificationIdMissing: string;
+    verificationIdMissingBody: string;
     companyDetails: string;
     companyDocsComplete: string;
     companyDocsIncompleteTitle: string;

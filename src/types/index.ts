@@ -36,11 +36,19 @@ export type Amenity =
 export interface Partner {
   id: string;
   name: string;
-  email: string;
+  /** Null until the partner sets one — GET /me returns `null`, not "". */
+  email: string | null;
   phone: string; // +9665XXXXXXXX
   accountType: AccountType;
-  /** Individual: National ID (10, starts 1). Company: CR (10). Read-only in UI. */
-  verificationId: string;
+  /**
+   * Individual: National ID (10, starts 1). Company: CR (10). Read-only in UI.
+   *
+   * Nullable: partners onboarded straight through OTP never went through the
+   * registration step that collects `national_id`/`cr_number`, so live `/me`
+   * returns `null` here even for `accountState: "approved"` accounts. The UI
+   * must say so rather than render a blank field with a verified checkmark.
+   */
+  verificationId: string | null;
   /** Account gate — controls dashboard access. */
   accountState: "approved" | "pending" | "suspended";
   hostCancellationsLast12m: number;
@@ -151,8 +159,13 @@ export interface Unit {
   amenities: Amenity[];
   checkIn: string; // "15:00"
   checkOut: string; // "12:00"
-  lat: number;
-  lng: number;
+  /**
+   * Nullable for the same reason as `beds`/`bathrooms`: a draft carries no
+   * coordinates until the partner drops the pin on the map. Guard with
+   * `isValidLatLng` before handing these to Leaflet.
+   */
+  lat: number | null;
+  lng: number | null;
   address: string;
   tourismLicenseNumber: string;
   tourismLicenseFileId?: string; // uploaded PDF ref

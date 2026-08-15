@@ -67,14 +67,15 @@ function ProfileCard({
   const { t } = useLocale();
   const a = t.account;
   const [name, setName] = useState(data.name);
-  const [email, setEmail] = useState(data.email);
+  // `/me` returns null for an unset email — coerce so the input stays controlled.
+  const [email, setEmail] = useState(data.email ?? "");
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     setName(data.name);
-    setEmail(data.email);
+    setEmail(data.email ?? "");
   }, [data]);
 
   const since = new Intl.DateTimeFormat(locale === "ar" ? "ar" : "en-US", {
@@ -112,8 +113,16 @@ function ProfileCard({
           {/* Phone changes go through the OTP flow (§2.3) — read-only here */}
           <TextField label={a.phoneNumber} defaultValue={formatPhone(data.phone)} dir="ltr" readOnly />
           <TextField label={a.partnerType} defaultValue={partnerType} readOnly />
-          {/* National ID / CR — admin-managed, never editable (§2.2) */}
-          <TextField label={a.verificationId} defaultValue={data.verificationId} dir="ltr" readOnly />
+          {/* National ID / CR — admin-managed, never editable (§2.2). Null when
+              the partner never went through registration; an unexplained empty
+              box just looks broken, so name the reason in the placeholder. */}
+          <TextField
+            label={a.verificationId}
+            defaultValue={data.verificationId ?? ""}
+            placeholder={data.verificationId ? undefined : a.verificationIdMissing}
+            dir={data.verificationId ? "ltr" : undefined}
+            readOnly
+          />
           <TextField label={a.location} defaultValue={BRAND.headerLocation[locale]} readOnly />
         </div>
         {formError && <p className="mt-4 text-sm text-status-rejected">{formError}</p>}
@@ -253,6 +262,7 @@ function TextField({
   type,
   dir,
   readOnly,
+  placeholder,
 }: {
   label: string;
   defaultValue?: string;
@@ -261,6 +271,7 @@ function TextField({
   type?: string;
   dir?: "ltr" | "rtl";
   readOnly?: boolean;
+  placeholder?: string;
 }) {
   return (
     <label className="block">
@@ -272,6 +283,7 @@ function TextField({
         type={type}
         dir={dir}
         readOnly={readOnly}
+        placeholder={placeholder}
         className={`w-full rounded-xl border border-line px-4 py-2.5 text-sm outline-none ${
           readOnly
             ? "cursor-default bg-cream/60 text-ink-muted"

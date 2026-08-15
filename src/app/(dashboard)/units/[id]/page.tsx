@@ -11,6 +11,7 @@ import { Card, Button } from "@/components/ui";
 import { UnitBadge } from "@/components/shared/status-badge";
 import { DateText } from "@/components/shared/typed-text";
 import { PriceBreakdown } from "@/features/units/components/price-breakdown";
+import { isValidLatLng } from "@/features/units/lib/geo";
 import { LoadingSkeleton, ErrorState } from "@/components/shared/states";
 import { AlertTriangle, CalendarDays, ExternalLink, Link2, RefreshCw } from "lucide-react";
 
@@ -90,7 +91,8 @@ export default function UnitDetailPage() {
           <h3 className="mb-3 font-semibold text-ink">الترخيص</h3>
           <dl className="space-y-2 text-sm">
             <Row label="رقم التصريح السياحي" value={u.tourismLicenseNumber || "—"} />
-            <Row label="الإحداثيات" value={`${u.lat}, ${u.lng}`} />
+            {/* A draft may have no pin yet — "null, null" is not a coordinate. */}
+            <Row label="الإحداثيات" value={isValidLatLng(u) ? `${u.lat}, ${u.lng}` : "—"} />
             <Row label="العنوان" value={u.address} />
           </dl>
           <p className="mt-4 text-sm text-ink-muted">{u.description}</p>

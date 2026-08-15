@@ -6,7 +6,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { useLocale } from "@/stores/locale-store";
 import { SAUDI_BOUNDS } from "@/lib/constants";
-import { isInsideSaudi, type LatLng } from "@/features/units/lib/geo";
+import { isInsideSaudi, isValidLatLng, type LatLng } from "@/features/units/lib/geo";
 import { cn } from "@/lib/cn";
 import { Search, Loader2, MapPin, AlertTriangle } from "lucide-react";
 
@@ -116,7 +116,11 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
     }
   }
 
-  const center = value ?? SAUDI_BOUNDS.center;
+  // Never trust the incoming point: Leaflet throws on a non-finite LatLng and
+  // the exception escapes to the route's error boundary. An empty pair is the
+  // same thing as "no pin yet" — render the placeholder instead of crashing.
+  const point = isValidLatLng(value) ? value : null;
+  const center = point ?? SAUDI_BOUNDS.center;
 
   return (
     <div className="space-y-3">
@@ -168,7 +172,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
       <div className="relative h-72 overflow-hidden rounded-2xl border border-line">
         <MapContainer
           center={[center.lat, center.lng]}
-          zoom={value ? 13 : 5}
+          zoom={point ? 13 : 5}
           scrollWheelZoom
           style={{ height: "100%", width: "100%" }}
         >
@@ -177,10 +181,10 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <ClickHandler onPick={commitPoint} />
-          <RecenterOnChange center={value} />
-          {value && (
+          <RecenterOnChange center={point} />
+          {point && (
             <Marker
-              position={[value.lat, value.lng]}
+              position={[point.lat, point.lng]}
               icon={pinIcon}
               draggable
               eventHandlers={{
@@ -194,7 +198,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
           )}
         </MapContainer>
 
-        {!value && (
+        {!point && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/0">
             <div className="rounded-2xl bg-white px-6 py-4 text-center shadow-card">
               <MapPin className="mx-auto h-6 w-6 text-ink-muted" />
@@ -214,7 +218,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
         </div>
       )}
 
-      {value && !outsideBounds && (
+      {point && !outsideBounds && (
         <div className="flex items-start gap-3 rounded-2xl bg-brand-soft px-4 py-4">
           <MapPin className="mt-0.5 h-5 w-5 text-brand" />
           <div>
@@ -225,7 +229,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
               <div className="text-sm text-ink-muted">{w.saudiArabia}</div>
             )}
             <div dir="ltr" className="text-xs text-ink-faint">
-              Lat {value.lat.toFixed(4)} · Lng {value.lng.toFixed(4)}
+              Lat {point.lat.toFixed(4)} · Lng {point.lng.toFixed(4)}
             </div>
           </div>
         </div>

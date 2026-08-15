@@ -865,8 +865,15 @@ export function createMockUnit(input: UnitCreateInput): Unit {
 export function updateMockUnit(id: string, input: UnitCreateInput): Unit {
   const u = mockUnits.find((x) => x.id === id);
   if (!u) throw new Error("UNIT_NOT_FOUND");
+  // `JSON.stringify` drops undefined keys, so the real backend never sees the
+  // fields the partner left blank. Object.assign does NOT — it would overwrite
+  // a stored value with undefined and hand the next reader a half-null unit.
+  // Strip them here so mock mode PATCHes exactly like the real one.
+  const patch = Object.fromEntries(
+    Object.entries(input).filter(([, v]) => v !== undefined),
+  ) as UnitCreateInput;
   Object.assign(u, {
-    ...input,
+    ...patch,
     photos: input.photoFileIds
       ? input.photoFileIds.map((fid, i) => ({
           id: fid,
