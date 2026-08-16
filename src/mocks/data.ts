@@ -467,6 +467,8 @@ export function mockIcalExportUrl(unitId: string): string {
 export const mockCompanyDocs: CompanyDocs = {
   cr: "",
   iban: "",
+  crFileId: null,
+  crUrl: null,
   nationalIdFileId: null,
   authorizationLetterFileId: null,
   vatCertificateFileId: null,
@@ -496,6 +498,10 @@ function recomputeCompanyDocsComplete() {
     return;
   }
 
+  // The CR *scan* is deliberately NOT in this set. The backend keeps the CR
+  // row's `expects` switch off until every company already on the platform has
+  // had a path to upload one — flipping it early marks them all incomplete over
+  // a flag they cannot resolve, and reviewers learn to scroll past the alarm.
   mockCompanyDocs.complete = Boolean(
     /^\d{10}$/.test(mockCompanyDocs.cr) &&
       hasIban &&
@@ -509,8 +515,19 @@ export function saveMockCompanyDocs(patch: Partial<CompanyDocs>): CompanyDocs {
   // `accountHolderName` is accepted and then dropped — there is no column for
   // it yet. Mirrored here on purpose so mock mode reproduces the real "comes
   // back empty on reload" behaviour instead of looking like it persists.
-  const { accountHolderName: _discarded, ...stored } = patch;
-  Object.assign(mockCompanyDocs, stored);
+  const { accountHolderName: _discarded, crUrl: _serverResolved, ...stored } = patch;
+  // `Object.assign` would copy an explicit `undefined` over a stored value —
+  // JSON.stringify drops those keys before they ever reach the real endpoint,
+  // so drop them here too or mock mode "clears" fields the server never sees.
+  for (const [k, v] of Object.entries(stored)) {
+    if (v !== undefined) (mockCompanyDocs as unknown as Record<string, unknown>)[k] = v;
+  }
+  // `crUrl` is derived server-side from whatever `crFileId` now points at — the
+  // client never writes it, so resolving it here keeps the read-back honest.
+  mockCompanyDocs.crUrl =
+    mockCompanyDocs.crFileId ?
+      `https://staging.mamsaa.com/storage/dashboard/company_doc/${mockCompanyDocs.crFileId}.pdf`
+    : null;
   recomputeCompanyDocsComplete();
   return { ...mockCompanyDocs };
 }

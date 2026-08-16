@@ -16,7 +16,7 @@ import { formatPhone } from "@/lib/format";
 import { BRAND } from "@/lib/constants";
 import type { Locale } from "@/lib/i18n";
 import type { Partner } from "@/types";
-import { Save, Check, AlertTriangle, Loader2 } from "lucide-react";
+import { Save, Check, AlertTriangle, ExternalLink, Loader2 } from "lucide-react";
 
 export default function AccountPage() {
   const { t, locale } = useLocale();
@@ -171,6 +171,7 @@ function CompanyDocsCard() {
 
   const [cr, setCr] = useState("");
   const [iban, setIban] = useState("");
+  const [crFile, setCrFile] = useState<UploadedFile | null>(null);
   const [authLetter, setAuthLetter] = useState<UploadedFile | null>(null);
   const [vatCert, setVatCert] = useState<UploadedFile | null>(null);
   const [operatorLicense, setOperatorLicense] = useState<UploadedFile | null>(null);
@@ -182,6 +183,7 @@ function CompanyDocsCard() {
     if (!data) return;
     setCr(data.cr);
     setIban(data.iban);
+    if (data.crFileId) setCrFile({ fileId: data.crFileId, fileName: a.crFileLabel });
     if (data.authorizationLetterFileId) setAuthLetter({ fileId: data.authorizationLetterFileId, fileName: a.authLetterLabel });
     if (data.vatCertificateFileId) setVatCert({ fileId: data.vatCertificateFileId, fileName: a.vatCertLabel });
     if (data.operatorLicenseFileId) setOperatorLicense({ fileId: data.operatorLicenseFileId, fileName: a.operatorLicenseLabel });
@@ -204,9 +206,12 @@ function CompanyDocsCard() {
       const updated = await api.putCompanyDocs({
         cr,
         iban: normalizeIban(iban),
-        authorizationLetterFileId: authLetter?.fileId ?? null,
-        vatCertificateFileId: vatCert?.fileId ?? null,
-        operatorLicenseFileId: operatorLicense?.fileId ?? null,
+        // Omitted rather than nulled when unset: the endpoint merges partially
+        // and ignores nulls, so a null here reads as "no change" anyway (§3.3).
+        crFileId: crFile?.fileId ?? undefined,
+        authorizationLetterFileId: authLetter?.fileId ?? undefined,
+        vatCertificateFileId: vatCert?.fileId ?? undefined,
+        operatorLicenseFileId: operatorLicense?.fileId ?? undefined,
       });
       setData(updated);
       setSavedAt(Date.now());
@@ -243,9 +248,57 @@ function CompanyDocsCard() {
       </div>
 
       <div className="mt-5 space-y-3">
-        <FileUploadRow kind="company_doc" title={a.authLetterLabel} accept="application/pdf" value={authLetter} onChange={setAuthLetter} />
-        <FileUploadRow kind="company_doc" title={a.vatCertLabel} accept="application/pdf" value={vatCert} onChange={setVatCert} />
-        <FileUploadRow kind="company_doc" title={a.operatorLicenseLabel} accept="application/pdf" value={operatorLicense} onChange={setOperatorLicense} />
+        {/* The scan behind the number. A reviewer approving a company had only
+            the typed 10 digits to go on until this existed — and unlike the
+            other three, a CR is usually photographed, so images are accepted. */}
+        <FileUploadRow
+          kind="company_doc"
+          title={a.crFileLabel}
+          subtitle={a.crFileHint}
+          accept="image/png,image/jpeg,application/pdf"
+          value={crFile}
+          onChange={setCrFile}
+          removable={false}
+        />
+        {/* Replace-only for the same reason as the CR row — the endpoint ignores
+            a null, so an X here clears the slot on screen and nowhere else. */}
+        <FileUploadRow kind="company_doc" title={a.authLetterLabel} accept="application/pdf" value={authLetter} onChange={setAuthLetter} removable={false} />
+        <FileUploadRow kind="company_doc" title={a.vatCertLabel} accept="application/pdf" value={vatCert} onChange={setVatCert} removable={false} />
+        <FileUploadRow
+          kind="company_doc"
+          title={a.operatorLicenseLabel}
+          accept="application/pdf"
+          value={operatorLicense}
+          onChange={setOperatorLicense}
+          removable={false}
+        />
+      </div>
+
+      {/* Shown back so the partner can confirm the right page uploaded — a CR
+          photographed off a screen is the common way this goes wrong, and the
+          only person who can catch it is the one who took the photo. */}
+      <div
+        className={`mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border px-4 py-3 text-sm ${
+          data.crFileId ?
+            "border-status-approved/30 bg-status-approved/10 text-status-approved"
+          : "border-status-pending/40 bg-status-pending/10 text-status-pending"
+        }`}
+      >
+        {data.crFileId ?
+          <Check className="h-4 w-4 shrink-0" />
+        : <AlertTriangle className="h-4 w-4 shrink-0" />}
+        <p className="font-semibold">{data.crFileId ? a.crFileOnFile : a.crFileMissing}</p>
+        {data.crUrl && (
+          <a
+            href={data.crUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 font-semibold underline underline-offset-4"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            {a.crFileView}
+          </a>
+        )}
       </div>
 
       {formError && <p className="mt-4 text-sm text-status-rejected">{formError}</p>}

@@ -57,8 +57,9 @@ export function IdentityDocumentCard({ partner }: { partner: Partner }) {
     try {
       // ONLY the identity field — no `cr`, no company document ids, and no
       // `iban`. The payout card owns the IBAN; sending an empty one from here
-      // would wipe it.
-      const updated = await api.putCompanyDocs({ nationalIdFileId: file?.fileId ?? null });
+      // would wipe it. Omitted when unset, since the endpoint merges partially
+      // and treats a null as "no change" rather than a removal.
+      const updated = await api.putCompanyDocs({ nationalIdFileId: file?.fileId ?? undefined });
       setData(updated);
       setSavedAt(Date.now());
     } catch (e) {
@@ -91,6 +92,7 @@ export function IdentityDocumentCard({ partner }: { partner: Partner }) {
           accept="image/png,image/jpeg,application/pdf"
           value={file}
           onChange={setFile}
+          removable={false}
         />
       </div>
 

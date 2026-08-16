@@ -64,6 +64,21 @@ export interface Partner {
 export interface CompanyDocs {
   cr: string; // 10 digits
   /**
+   * The company's CR scan — the counterpart to `nationalIdFileId`. Until it
+   * shipped an admin approved a company on a typed 10-digit string with nothing
+   * to open. Uploaded with `kind: "company_doc"`; images are first-class, a CR
+   * is usually photographed rather than scanned.
+   *
+   * ⚠️ Cannot be cleared: `PUT /me/company-docs` merges partially and ignores
+   * nulls, so `{ crFileId: null }` is a no-op. Replace by uploading another file.
+   */
+  crFileId: string | null;
+  /**
+   * Resolved, ready for an `<a href>` — no second call and no signing. Read-only:
+   * never send it back on the PUT.
+   */
+  crUrl: string | null;
+  /**
    * The payout IBAN, for ANY partner type — `PUT /me/company-docs` has no
    * partner-type gate. Badly named here; it moves to `/me/bank-details` once
    * the backend ships that table.

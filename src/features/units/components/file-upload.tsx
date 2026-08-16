@@ -20,10 +20,26 @@ interface FileUploadRowProps {
   accept?: string;
   value: UploadedFile | null;
   onChange: (file: UploadedFile | null) => void;
+  /**
+   * Off for KYC documents: `PUT /me/company-docs` merges partially and ignores
+   * nulls, so a removal never reaches the server. Offering the X there shows a
+   * cleared slot that silently comes back on the next read — the honest action
+   * is replace-only.
+   */
+  removable?: boolean;
 }
 
 /** A single upload slot — real file picker, real presign+PUT upload (§9.1), with progress/error states. */
-export function FileUploadRow({ kind, title, subtitle, optional, accept, value, onChange }: FileUploadRowProps) {
+export function FileUploadRow({
+  kind,
+  title,
+  subtitle,
+  optional,
+  accept,
+  value,
+  onChange,
+  removable = true,
+}: FileUploadRowProps) {
   const { t } = useLocale();
   const w = t.wiz;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,36 +63,57 @@ export function FileUploadRow({ kind, title, subtitle, optional, accept, value, 
     }
   }
 
+  const picker = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept={accept}
+      className="hidden"
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (file) handleFile(file);
+      }}
+    />
+  );
+
   if (value) {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border-2 border-brand bg-brand-soft px-4 py-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-dark text-white">
-          <Check className="h-5 w-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-ink">{title}</div>
-          <div className="truncate text-xs text-ink-muted">{value.fileName}</div>
+      <div>
+        {picker}
+        <div className="flex items-center gap-3 rounded-2xl border-2 border-brand bg-brand-soft px-4 py-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-dark text-white">
+            {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-ink">{title}</div>
+            <div className="truncate text-xs text-ink-muted">{value.fileName}</div>
+          </div>
+          {removable ?
+            <button onClick={() => onChange(null)} className="text-status-rejected hover:opacity-70" aria-label="remove">
+              <X className="h-4 w-4" />
+            </button>
+          : <button
+              onClick={() => !uploading && inputRef.current?.click()}
+              disabled={uploading}
+              className="shrink-0 rounded-xl border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-brand disabled:opacity-60"
+            >
+              {uploading ? w.uploading : w.replaceFile}
+            </button>
+          }
         </div>
-        <button onClick={() => onChange(null)} className="text-status-rejected hover:opacity-70" aria-label="remove">
-          <X className="h-4 w-4" />
-        </button>
+        {error && (
+          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-status-rejected">
+            <AlertCircle className="h-3.5 w-3.5" /> {error}
+          </p>
+        )}
       </div>
     );
   }
 
   return (
     <div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (file) handleFile(file);
-        }}
-      />
+      {picker}
       <button
         onClick={() => !uploading && inputRef.current?.click()}
         disabled={uploading}

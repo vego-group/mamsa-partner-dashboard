@@ -185,6 +185,11 @@ export const dict: Record<Locale, Dict> = {
       saveCompanyDocs: "حفظ بيانات الشركة",
       companyDocsSaved: "تم حفظ البيانات",
       crInvalid: "رقم السجل التجاري يجب أن يتكون من 10 أرقام",
+      crFileLabel: "صورة السجل التجاري",
+      crFileHint: "صورة واضحة (JPG أو PNG) أو ملف PDF — التصوير بالجوال مقبول.",
+      crFileMissing: "لم تُرفع صورة السجل التجاري بعد — الرقم وحده لا يمكن للمراجع التحقق منه.",
+      crFileOnFile: "صورة السجل التجاري مُسجَّلة على حسابك.",
+      crFileView: "عرض الملف المرفوع",
       payoutAccountTitle: "حساب استلام الأرباح",
       payoutAccountSubtitle: "الحساب البنكي الذي تُحوَّل إليه مستحقاتك.",
       accountHolderLabel: "اسم صاحب الحساب",
@@ -520,6 +525,7 @@ export const dict: Record<Locale, Dict> = {
       uploading: "جارٍ الرفع…",
       uploadFailed: "تعذّر رفع الملف",
       fileTooLarge: (mb: number) => `حجم الملف أكبر من ${mb} ميجابايت`,
+      replaceFile: "استبدال الملف",
       // Step 5
       s5Title: "المراجعة والإرسال",
       s5Sub: "راجع كل التفاصيل قبل إرسال عقارك للمراجعة.",
@@ -779,6 +785,11 @@ export const dict: Record<Locale, Dict> = {
       saveCompanyDocs: "Save Company Details",
       companyDocsSaved: "Details saved",
       crInvalid: "Commercial Registration must be 10 digits",
+      crFileLabel: "Commercial Registration scan",
+      crFileHint: "A clear image (JPG or PNG) or a PDF — a phone photo is fine.",
+      crFileMissing: "No CR scan uploaded yet — a reviewer cannot check the number on its own.",
+      crFileOnFile: "Your CR scan is on file.",
+      crFileView: "View uploaded file",
       payoutAccountTitle: "Payout Account",
       payoutAccountSubtitle: "The bank account your earnings are transferred to.",
       accountHolderLabel: "Account Holder Name",
@@ -1114,6 +1125,7 @@ export const dict: Record<Locale, Dict> = {
       uploading: "Uploading…",
       uploadFailed: "Couldn't upload the file",
       fileTooLarge: (mb: number) => `File is larger than ${mb} MB`,
+      replaceFile: "Replace file",
       // Step 5
       s5Title: "Review & Submit",
       s5Sub: "Check all details before submitting your property for review.",
@@ -1364,6 +1376,11 @@ export type Dict = {
     saveCompanyDocs: string;
     companyDocsSaved: string;
     crInvalid: string;
+    crFileLabel: string;
+    crFileHint: string;
+    crFileMissing: string;
+    crFileOnFile: string;
+    crFileView: string;
     payoutAccountTitle: string;
     payoutAccountSubtitle: string;
     accountHolderLabel: string;
@@ -1687,6 +1704,7 @@ export type Dict = {
     uploading: string;
     uploadFailed: string;
     fileTooLarge: (mb: number) => string;
+    replaceFile: string;
     s5Title: string;
     s5Sub: string;
     licenseNo: string;
