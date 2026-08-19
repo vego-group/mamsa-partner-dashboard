@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api/client";
 import { useAsync } from "@/lib/use-async";
 import { useLocale } from "@/stores/locale-store";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/shared/states";
 import { icalFeedSchema } from "@/lib/schema";
-import type { CalendarDay, DayStatus, ICalFeed } from "@/types";
+import type { CalendarDay, DayStatus, ICalFeed, Unit } from "@/types";
 import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import {
@@ -19,6 +19,8 @@ import {
   Trash2,
   Link2,
   Copy,
+  Building2,
+  ChevronDown,
 } from "lucide-react";
 
 const dayColors: Record<DayStatus, string> = {
@@ -54,7 +56,13 @@ export default function CalendarPage() {
   const c = t.calendar;
   const units = useAsync(() => api.listUnits());
   const approved = (units.data ?? []).filter((u) => u.status === "approved");
-  const active = approved[0]?.id;
+
+  // Every calendar endpoint is per-unit, so the page always operates on exactly
+  // one unit. Default to the first approved one and let the picker override it;
+  // the fallback also covers a selected unit disappearing from the list.
+  const [unitId, setUnitId] = useState<string>();
+  const active = approved.some((u) => u.id === unitId) ? unitId : approved[0]?.id;
+  const activeUnit = approved.find((u) => u.id === active);
 
   // The visible month drives the backend query. Defaults to the current month
   // (the backend also defaults to it), and the grid refetches whenever it changes.
@@ -87,6 +95,15 @@ export default function CalendarPage() {
   // itself refetches from the backend through the monthKey dependency above.
   function goToMonth(next: Date) {
     setViewDate(next);
+    setSelected([]);
+    setOverrides({});
+    setActionError(undefined);
+  }
+
+  // Same reset as a month switch: the selection and the optimistic overrides
+  // belong to the unit that was on screen, never to the one being switched to.
+  function selectUnit(id: string) {
+    setUnitId(id);
     setSelected([]);
     setOverrides({});
     setActionError(undefined);
@@ -175,7 +192,9 @@ export default function CalendarPage() {
           <h1 className="text-2xl font-bold text-ink">{c.title}</h1>
           <p className="mt-0.5 text-sm text-ink-muted">{c.subtitle}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* The unit is never implicit: one approved unit is named, several are a picker. */}
+          <UnitPicker units={approved} value={activeUnit} label={c.unitLabel} onChange={selectUnit} />
           <div className="flex items-center gap-1 rounded-full bg-white p-1 shadow-card">
             <button onClick={() => goToMonth(new Date(year, month - 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-ink-muted hover:bg-cream">
               <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
@@ -317,6 +336,98 @@ export default function CalendarPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------------- Unit picker ----------------
+   A native <select> renders with the OS chrome, which breaks out of the pill row.
+   This is the same popover shape the location search uses. Single-unit partners
+   get a plain chip: the unit still has to be named, but there is nothing to pick. */
+function UnitPicker({
+  units,
+  value,
+  label,
+  onChange,
+}: {
+  units: Unit[];
+  value?: Unit;
+  label: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  if (units.length <= 1) {
+    return value ? (
+      <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink shadow-card">
+        <Building2 className="h-4 w-4 shrink-0 text-ink-faint" />
+        <span className="max-w-48 truncate">{value.name}</span>
+      </span>
+    ) : null;
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={label}
+        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink shadow-card transition hover:bg-cream"
+      >
+        <Building2 className="h-4 w-4 shrink-0 text-ink-faint" />
+        <span className="max-w-48 truncate">{value?.name}</span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-ink-muted transition", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className="absolute start-0 top-full z-30 mt-2 max-h-72 w-64 overflow-auto rounded-2xl border border-line bg-white p-1.5 shadow-modal"
+        >
+          {units.map((u) => {
+            const isActive = u.id === value?.id;
+            return (
+              <button
+                key={u.id}
+                role="option"
+                aria-selected={isActive}
+                onClick={() => {
+                  onChange(u.id);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-start transition",
+                  isActive ? "bg-brand-soft" : "hover:bg-cream",
+                )}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-ink">{u.name}</span>
+                  <span dir="ltr" className="block truncate text-xs text-ink-faint rtl:text-end">{u.code}</span>
+                </span>
+                {isActive && <Check className="h-4 w-4 shrink-0 text-brand" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -30,8 +30,8 @@ import {
   mockPartner,
   mockUnits,
   mockBookings,
-  mockCalendar,
-  mockFeeds,
+  buildUnitMonth,
+  readMockFeeds,
   mockNotifications,
   buildOverview,
   buildReportsSummary,
@@ -520,7 +520,7 @@ export const api = {
   async getCalendar(unitId: string, month: string): Promise<CalendarDay[]> {
     if (USE_MOCK) {
       await delay();
-      return mockCalendar[unitId] ?? mockCalendar.u_1;
+      return buildUnitMonth(unitId, month);
     }
     // Contract returns a bare array; tolerate a `{ data }` envelope defensively.
     const json = await http<{ data: CalendarDay[] } | CalendarDay[]>(
@@ -555,7 +555,7 @@ export const api = {
   async listFeeds(unitId: string): Promise<ICalFeed[]> {
     if (USE_MOCK) {
       await delay();
-      return [...mockFeeds];
+      return readMockFeeds(unitId);
     }
     return http(`/units/${unitId}/ical`);
   },
@@ -564,7 +564,7 @@ export const api = {
   async addFeed(unitId: string, source: string, url: string): Promise<ICalFeed> {
     if (USE_MOCK) {
       await delay(600);
-      return addMockFeed(source, url);
+      return addMockFeed(unitId, source, url);
     }
     return http(`/units/${unitId}/ical`, {
       method: "POST",
@@ -575,7 +575,7 @@ export const api = {
   async deleteFeed(unitId: string, feedId: string): Promise<void> {
     if (USE_MOCK) {
       await delay();
-      deleteMockFeed(feedId);
+      deleteMockFeed(unitId, feedId);
       return;
     }
     await http(`/units/${unitId}/ical/${feedId}`, { method: "DELETE" });
@@ -585,7 +585,7 @@ export const api = {
   async syncFeed(unitId: string, feedId: string): Promise<ICalFeed> {
     if (USE_MOCK) {
       await delay(700);
-      return syncMockFeed(feedId);
+      return syncMockFeed(unitId, feedId);
     }
     return http(`/units/${unitId}/ical/${feedId}/sync`, { method: "POST" });
   },

@@ -128,6 +128,7 @@ export const dict: Record<Locale, Dict> = {
     calendar: {
       title: "تقويم الإتاحة",
       subtitle: "أدر واحجب التواريخ عبر وحداتك",
+      unitLabel: "الوحدة",
       syncIcal: "مزامنة iCal",
       icalSynced: "تمت مزامنة iCal",
       datesSelected: (n: number) => `${n} تواريخ محددة`,
@@ -147,7 +148,7 @@ export const dict: Record<Locale, Dict> = {
       exportTitle: "تصدير تقويم مَمسَى",
       exportSub: "أضف هذا الرابط في المنصات الأخرى ليقفل تواريخ مَمسَى عندهم تلقائيًا.",
       quickBlock: "حجب سريع",
-      quickBlockSub: "احجب التواريخ عبر كل الوحدات أو وحدات محددة",
+      quickBlockSub: "احجب فترة تواريخ كاملة في الوحدة المختارة",
       blockReasonPh: "السبب (اختياري)",
       blockSelectedDates: "حجب التواريخ المحددة",
       weekdays: ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"],
@@ -728,6 +729,7 @@ export const dict: Record<Locale, Dict> = {
     calendar: {
       title: "Availability Calendar",
       subtitle: "Manage and block dates across your properties",
+      unitLabel: "Property",
       syncIcal: "Sync iCal",
       icalSynced: "iCal Synced",
       datesSelected: (n: number) => `${n} dates selected`,
@@ -747,7 +749,7 @@ export const dict: Record<Locale, Dict> = {
       exportTitle: "Export Mamsa Calendar",
       exportSub: "Paste this link into other platforms so Mamsa dates auto-block there.",
       quickBlock: "Quick Block",
-      quickBlockSub: "Block dates across all or specific properties",
+      quickBlockSub: "Block a whole date range on the selected property",
       blockReasonPh: "Reason (optional)",
       blockSelectedDates: "Block Selected Dates",
       weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
@@ -1319,6 +1321,7 @@ export type Dict = {
   calendar: {
     title: string;
     subtitle: string;
+    unitLabel: string;
     syncIcal: string;
     icalSynced: string;
     datesSelected: (n: number) => string;

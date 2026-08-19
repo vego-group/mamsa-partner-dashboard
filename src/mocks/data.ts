@@ -237,8 +237,13 @@ export const mockBookings: Booking[] = [
   bk("b_8", "BK-2377", mockUnits[0], "ريم الغامدي", "+966503334455", "2026-05-20T15:00:00Z", "2026-05-26T12:00:00Z", 6, 2, "completed"),
 ];
 
-export const mockCalendar: Record<string, CalendarDay[]> = {
-  u_1: buildMonth("2026-07", {
+/**
+ * Day overrides per unit. The calendar API is per-unit, so each unit needs its
+ * own pattern — otherwise switching units in the picker looks like a no-op.
+ * A unit that is absent here is simply fully available.
+ */
+const calendarOverrides: Record<string, Record<number, Partial<CalendarDay>>> = {
+  u_1: {
     3: { status: "booked", bookingCode: "BK-2401", bookingId: "b_1" },
     4: { status: "booked", bookingCode: "BK-2401", bookingId: "b_1" },
     5: { status: "booked", bookingCode: "BK-2401", bookingId: "b_1" },
@@ -251,8 +256,28 @@ export const mockCalendar: Record<string, CalendarDay[]> = {
     24: { status: "booked", bookingCode: "BK-2401", bookingId: "b_1" },
     27: { status: "blocked", reason: null },
     28: { status: "blocked", reason: null },
-  }),
+  },
+  u_2: {
+    6: { status: "blocked", reason: "تعقيم وتجهيز" },
+    11: { status: "booked", bookingCode: "BK-2402", bookingId: "b_2" },
+    12: { status: "booked", bookingCode: "BK-2402", bookingId: "b_2" },
+    13: { status: "booked", bookingCode: "BK-2402", bookingId: "b_2" },
+    19: { status: "external", source: "Airbnb" },
+    20: { status: "external", source: "Airbnb" },
+    21: { status: "external", source: "Airbnb" },
+  },
 };
+
+/** The seeded July grid, kept for the overview's occupancy math. */
+export const mockCalendar: Record<string, CalendarDay[]> = {
+  u_1: buildMonth("2026-07", calendarOverrides.u_1),
+};
+
+/** Mirrors GET /units/{id}/calendar?month= — the unit's own pattern, on the
+ *  month actually being viewed, so the demo grid is never blank. */
+export function buildUnitMonth(unitId: string, ym: string): CalendarDay[] {
+  return buildMonth(ym, calendarOverrides[unitId] ?? {});
+}
 
 function buildMonth(
   ym: string,
@@ -268,11 +293,24 @@ function buildMonth(
   });
 }
 
-export const mockFeeds: ICalFeed[] = [
-  { id: "f_1", source: "Airbnb — استوديو مرسى العليا", url: "https://airbnb.com/ical/1", status: "synced", lastSync: "2026-07-13T09:58:00Z" },
-  { id: "f_2", source: "Booking.com — شقة إطلالة البحر", url: "https://booking.com/ical/2", status: "synced", lastSync: "2026-07-13T09:55:00Z" },
-  { id: "f_3", source: "Vrbo — فيلا الروضة", url: "https://vrbo.com/ical/3", status: "error", lastSync: "2026-07-13T07:30:00Z" },
-];
+/**
+ * Feeds hang off /units/{id}/ical, so they are keyed by unit here too. The
+ * source is just the platform name: which unit it belongs to is the key, not
+ * part of the label.
+ */
+const mockFeedsByUnit: Record<string, ICalFeed[]> = {
+  u_1: [
+    { id: "f_1", source: "Airbnb", url: "https://airbnb.com/ical/1", status: "synced", lastSync: "2026-07-13T09:58:00Z" },
+    { id: "f_2", source: "Booking.com", url: "https://booking.com/ical/2", status: "synced", lastSync: "2026-07-13T09:55:00Z" },
+  ],
+  u_2: [
+    { id: "f_3", source: "Vrbo", url: "https://vrbo.com/ical/3", status: "error", lastSync: "2026-07-13T07:30:00Z" },
+  ],
+};
+
+export function readMockFeeds(unitId: string): ICalFeed[] {
+  return [...(mockFeedsByUnit[unitId] ?? [])];
+}
 
 /** Seeded relative to "now" so the اليوم/أمس/سابقًا grouping always demos nicely. */
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
@@ -433,7 +471,7 @@ export function buildReportCsv(from: string, to: string): string {
 /* ---------------- iCal feed mock helpers (§5.4–5.5 live behavior) ---------------- */
 
 /** Add = validate + immediate first sync server-side; the returned feed is already synced. */
-export function addMockFeed(source: string, url: string): ICalFeed {
+export function addMockFeed(unitId: string, source: string, url: string): ICalFeed {
   const feed: ICalFeed = {
     id: `f_${Date.now()}`,
     source,
@@ -441,17 +479,19 @@ export function addMockFeed(source: string, url: string): ICalFeed {
     status: "synced",
     lastSync: new Date().toISOString(),
   };
-  mockFeeds.push(feed);
+  const list = mockFeedsByUnit[unitId] ?? (mockFeedsByUnit[unitId] = []);
+  list.push(feed);
   return feed;
 }
 
-export function deleteMockFeed(feedId: string): void {
-  const i = mockFeeds.findIndex((f) => f.id === feedId);
-  if (i >= 0) mockFeeds.splice(i, 1);
+export function deleteMockFeed(unitId: string, feedId: string): void {
+  const list = mockFeedsByUnit[unitId] ?? [];
+  const i = list.findIndex((f) => f.id === feedId);
+  if (i >= 0) list.splice(i, 1);
 }
 
-export function syncMockFeed(feedId: string): ICalFeed {
-  const feed = mockFeeds.find((f) => f.id === feedId);
+export function syncMockFeed(unitId: string, feedId: string): ICalFeed {
+  const feed = (mockFeedsByUnit[unitId] ?? []).find((f) => f.id === feedId);
   if (!feed) throw new Error("FEED_NOT_FOUND");
   feed.status = "synced";
   feed.lastSync = new Date().toISOString();
