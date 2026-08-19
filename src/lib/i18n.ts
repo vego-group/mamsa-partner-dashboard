@@ -376,31 +376,41 @@ export const dict: Record<Locale, Dict> = {
       messageGuest: "مراسلة الضيف",
       step1of2: "الخطوة 1 من 2 — سبب الإلغاء",
       step2of2: "الخطوة 2 من 2 — تأكيد الإلغاء",
-      selectReason: "اختر سبب تعذّر استضافة هذا الحجز.",
+      selectReason: "اكتب سبب تعذّر استضافة هذا الحجز — سيصل نصّك إلى الضيف كما كتبته.",
+      reasonQuickFill: "أسباب شائعة",
+      reasonFieldLabel: "سبب الإلغاء",
+      reasonPlaceholder: "مثال: الوحدة محجوزة على منصة أخرى",
+      reasonTooShort: "اكتب سببًا واضحًا (3 أحرف على الأقل).",
       reasonBookedElsewhere: "الوحدة محجوزة على منصة أخرى",
       reasonUnavailable: "الوحدة غير متاحة",
       reasonMaintenance: "مشكلة صيانة",
       reasonEmergency: "حالة طارئة",
-      reasonOther: "أخرى",
       continue: "متابعة",
       confirmCancellation: "تأكيد الإلغاء",
-      confirmReviewSub: "يرجى مراجعة العواقب قبل المتابعة.",
-      consequenceRefund: "سيحصل الضيف على استرداد كامل فورًا.",
+      confirmReviewSub: "راجع ما يلي قبل المتابعة.",
+      refundFullNotice: (amount: string) => `سيتم استرداد ${amount} كاملةً للضيف.`,
+      partnerGetsNothing: "لن تحصل على أي مبلغ من هذا الحجز.",
+      irreversible: "لا يمكن التراجع عن هذا الإجراء.",
       consequenceRecord: "سيُسجَّل إلغاء مضيف على حسابك.",
       consequenceRanking: "قد ينخفض ترتيب وحدتك في نتائج البحث.",
-      consequencePenalty: "قد تؤدي الإلغاءات المتكررة إلى غرامات وفق سياسة المنصة.",
       selectedReason: "السبب المختار",
       financialImpact: "الأثر المالي",
       guestRefundAmount: "المبلغ المسترد للضيف",
-      platformCommission: "عمولة المنصة",
-      netLoss: "صافي الخسارة",
+      yourEarnings: "أرباحك من هذا الحجز",
       cancellingBooking: "جارٍ إلغاء الحجز…",
       pleaseWait: "يرجى الانتظار، لا تغلق هذه النافذة.",
       notifyingGuest: "إشعار الضيف",
       initiatingRefund: "بدء الاسترداد",
       recordingCancellation: "تسجيل الإلغاء",
+      cancelFailed: "تعذّر إلغاء الحجز، حاول مرة أخرى.",
+      refundFailedHint: "لم يُلغَ الحجز ولم يتحرّك أي مبلغ. حاول مرة أخرى بعد قليل.",
+      cancelledTitle: "تم إلغاء الحجز",
+      refundProcessingNotice: (amount: string) => `جارٍ استرداد ${amount} لضيفك.`,
+      refundCompletedNotice: (amount: string) => `تم استرداد ${amount} لضيفك.`,
+      refundBankTiming: "يصل المبلغ إلى بطاقة الضيف خلال 5–10 أيام عمل — هذا جدول البنك، وليس جدولنا.",
       cancellationDetails: "تفاصيل الإلغاء",
       cancellationType: "نوع الإلغاء",
+      guestCancellation: "إلغاء ضيف",
       cancellationReason: "سبب الإلغاء",
       cancellationDate: "تاريخ الإلغاء",
       refundAmount: "المبلغ المسترد",
@@ -977,31 +987,41 @@ export const dict: Record<Locale, Dict> = {
       messageGuest: "Message Guest",
       step1of2: "Step 1 of 2 — Cancellation Reason",
       step2of2: "Step 2 of 2 — Confirm Cancellation",
-      selectReason: "Please select the reason you are unable to host this booking.",
+      selectReason: "Write why you can't host this booking — your wording reaches the guest as-is.",
+      reasonQuickFill: "Common reasons",
+      reasonFieldLabel: "Cancellation reason",
+      reasonPlaceholder: "e.g. The property is already booked on another platform",
+      reasonTooShort: "Please write a clear reason (at least 3 characters).",
       reasonBookedElsewhere: "Property already booked on another platform",
       reasonUnavailable: "Property is unavailable",
       reasonMaintenance: "Maintenance issue",
       reasonEmergency: "Emergency situation",
-      reasonOther: "Other",
       continue: "Continue",
       confirmCancellation: "Confirm Cancellation",
-      confirmReviewSub: "Please review the consequences before proceeding.",
-      consequenceRefund: "The guest will immediately receive a full refund.",
+      confirmReviewSub: "Review the following before you proceed.",
+      refundFullNotice: (amount: string) => `${amount} will be refunded to the guest in full.`,
+      partnerGetsNothing: "You will receive nothing from this booking.",
+      irreversible: "This action cannot be undone.",
       consequenceRecord: "A Host Cancellation will be recorded on your account.",
       consequenceRanking: "Your property ranking may decrease in search results.",
-      consequencePenalty: "Repeated cancellations may result in penalties according to platform policy.",
       selectedReason: "Selected reason",
       financialImpact: "Financial Impact",
       guestRefundAmount: "Guest refund amount",
-      platformCommission: "Platform commission",
-      netLoss: "Net loss",
+      yourEarnings: "Your earnings from this booking",
       cancellingBooking: "Cancelling booking…",
       pleaseWait: "Please wait, do not close this window.",
       notifyingGuest: "Notifying guest",
       initiatingRefund: "Initiating refund",
       recordingCancellation: "Recording cancellation",
+      cancelFailed: "We couldn't cancel this booking. Please try again.",
+      refundFailedHint: "The booking was not cancelled and no money moved. Try again shortly.",
+      cancelledTitle: "Booking cancelled",
+      refundProcessingNotice: (amount: string) => `${amount} is on its way back to your guest.`,
+      refundCompletedNotice: (amount: string) => `${amount} has been refunded to your guest.`,
+      refundBankTiming: "The money reaches the guest's card in 5–10 business days — the bank's schedule, not ours.",
       cancellationDetails: "Cancellation Details",
       cancellationType: "Cancellation type",
+      guestCancellation: "Guest Cancellation",
       cancellationReason: "Cancellation reason",
       cancellationDate: "Cancellation date",
       refundAmount: "Refund amount",
@@ -1569,30 +1589,40 @@ export type Dict = {
     step1of2: string;
     step2of2: string;
     selectReason: string;
+    reasonQuickFill: string;
+    reasonFieldLabel: string;
+    reasonPlaceholder: string;
+    reasonTooShort: string;
     reasonBookedElsewhere: string;
     reasonUnavailable: string;
     reasonMaintenance: string;
     reasonEmergency: string;
-    reasonOther: string;
     continue: string;
     confirmCancellation: string;
     confirmReviewSub: string;
-    consequenceRefund: string;
+    refundFullNotice: (amount: string) => string;
+    partnerGetsNothing: string;
+    irreversible: string;
     consequenceRecord: string;
     consequenceRanking: string;
-    consequencePenalty: string;
     selectedReason: string;
     financialImpact: string;
     guestRefundAmount: string;
-    platformCommission: string;
-    netLoss: string;
+    yourEarnings: string;
     cancellingBooking: string;
     pleaseWait: string;
     notifyingGuest: string;
     initiatingRefund: string;
     recordingCancellation: string;
+    cancelFailed: string;
+    refundFailedHint: string;
+    cancelledTitle: string;
+    refundProcessingNotice: (amount: string) => string;
+    refundCompletedNotice: (amount: string) => string;
+    refundBankTiming: string;
     cancellationDetails: string;
     cancellationType: string;
+    guestCancellation: string;
     cancellationReason: string;
     cancellationDate: string;
     refundAmount: string;

@@ -223,12 +223,19 @@ export interface Booking {
   /** FROZEN at booking time (FR-036) — never re-read from the unit's current policy. */
   policySnapshot?: { name: string; rules: string };
   notes?: string;
-  /** Present when cancelled by host. */
+  /** Present only once `status === "cancelled"` — the API omits it otherwise. */
   cancellation?: {
-    type: "host";
+    /** Who cancelled. `host` = the partner, and only then is the refund 100%. */
+    type: "host" | "guest";
+    /** Guest-facing free text the canceller wrote. */
     reason: string;
     date: string; // ISO
+    /** Authoritative — never recompute it from `financials`. */
     refundAmount: number;
+    /**
+     * `processing` is the NORMAL first state: the gateway accepted the refund
+     * and settles asynchronously. It is success, not a warning (§4).
+     */
     refundStatus: "processing" | "completed";
   };
 }

@@ -189,6 +189,14 @@ export const mockUnits: Unit[] = [
   },
 ];
 
+/** `n` days from now at `hour` UTC — keeps relative seed dates readable. */
+const inDays = (n: number, hour: number): string => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + n);
+  d.setUTCHours(hour, 0, 0, 0);
+  return d.toISOString();
+};
+
 const bk = (
   id: string,
   code: string,
@@ -235,6 +243,11 @@ export const mockBookings: Booking[] = [
   bk("b_6", "BK-2312", mockUnits[1], "نورة الشمري", "+966501112233", "2026-03-04T16:00:00Z", "2026-03-09T12:00:00Z", 5, 4, "completed"),
   bk("b_7", "BK-2345", mockUnits[2], "بندر الحربي", "+966502223344", "2026-04-12T15:00:00Z", "2026-04-15T12:00:00Z", 3, 6, "completed"),
   bk("b_8", "BK-2377", mockUnits[0], "ريم الغامدي", "+966503334455", "2026-05-20T15:00:00Z", "2026-05-26T12:00:00Z", 6, 2, "completed"),
+  // Confirmed with an UPCOMING check-in — the only combination that unlocks
+  // host-cancel (§2). Dated relative to now on purpose: every fixed date in
+  // this seed eventually slides into the past, and when the last future
+  // check-in did, the cancel control silently became unreachable in mock mode.
+  bk("b_9", "BK-2409", mockUnits[0], "لطيفة السبيعي", "+966506667788", inDays(12, 15), inDays(15, 12), 3, 2, "confirmed"),
 ];
 
 /**
@@ -989,4 +1002,31 @@ export function submitMockUnit(id: string): Unit {
 export function deleteMockUnit(id: string): void {
   const i = mockUnits.findIndex((x) => x.id === id);
   if (i >= 0) mockUnits.splice(i, 1);
+}
+
+/**
+ * POST /bookings/:id/host-cancel — the guest is made whole: the refund is 100%
+ * of what they paid, with no policy deduction, and the partner earns nothing.
+ * The amount is stored, never recomputed at render time, so the mock exercises
+ * the same "read the refund off the API" path the real response does.
+ *
+ * `refundStatus` starts at `processing` because that is what the real gateway
+ * returns — a mock that jumped straight to `completed` would hide the state
+ * the UI actually has to render first.
+ *
+ * Mutates the seed in place: the list refetch after cancelling has to show the
+ * booking as cancelled, not resurrect it as confirmed.
+ */
+export function cancelMockBooking(id: string, reason: string): Booking {
+  const b = mockBookings.find((x) => x.id === id);
+  if (!b) throw new Error("BOOKING_NOT_FOUND");
+  b.status = "cancelled";
+  b.cancellation = {
+    type: "host",
+    reason,
+    date: new Date().toISOString(),
+    refundAmount: b.financials.total,
+    refundStatus: "processing",
+  };
+  return { ...b };
 }

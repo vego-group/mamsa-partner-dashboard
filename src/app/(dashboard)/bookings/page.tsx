@@ -144,9 +144,15 @@ function BookingsView() {
             if (deepLinkId) router.replace("/bookings", { scroll: false });
           }}
           onCancelled={(updated) => {
+            // The response IS the updated booking, so the open modal re-renders
+            // from it directly; the reload is only so the list row behind it
+            // stops showing the booking as confirmed.
             setSelected(updated);
             reload();
           }}
+          // A refusal that means the booking moved on under us — nothing was
+          // cancelled, but what is on screen is stale.
+          onStale={reload}
         />
       )}
     </div>

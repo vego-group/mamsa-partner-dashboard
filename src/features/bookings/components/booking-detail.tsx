@@ -2,18 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { api, ApiError } from "@/lib/api/client";
-import { Modal, Button } from "@/components/ui";
+import { Modal, Button, Field } from "@/components/ui";
 import { Avatar } from "@/components/shared/avatar";
 import { BookingBadge } from "@/components/shared/status-badge";
 import { MoneyText, PhoneText } from "@/components/shared/typed-text";
 import { useLocale } from "@/stores/locale-store";
-import { formatDateShort } from "@/lib/format";
+import { formatCurrency, formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import type { Booking } from "@/types";
 import {
   AlertTriangle,
   Loader2,
-  DollarSign,
   UserX,
   TrendingDown,
   AlertCircle,
@@ -22,41 +21,76 @@ import {
   BookOpen,
   ChevronRight,
   Check,
+  CheckCircle2,
 } from "lucide-react";
 
 type View = "details" | "reason" | "confirm" | "processing" | "cancelled";
+
+/**
+ * The reason is REQUIRED and reaches the guest — the API stores it verbatim and
+ * shows it to them, so it is guest-facing copy, not an internal note. Three
+ * characters is a client-side floor on top of the API's minimum of one: a
+ * two-letter reason passes validation and tells the guest nothing.
+ */
+const MIN_REASON = 3;
+
+/**
+ * Refusals that mean the booking on screen is stale. Retrying cannot help — the
+ * status changed under us, or check-in passed while the modal sat open — so the
+ * list is refetched and the retry button goes away (§5).
+ */
+const STALE_CODES = new Set(["BOOKING_NOT_CANCELLABLE", "CHECKIN_PASSED", "NOT_FOUND"]);
+
+interface CancelError {
+  /** The API's own Arabic message — rendered verbatim, never replaced. */
+  message: string;
+  retryable: boolean;
+  hint?: string;
+}
 
 export function BookingDetail({
   booking,
   onClose,
   onCancelled,
+  onStale,
 }: {
   booking: Booking;
   onClose: () => void;
   onCancelled: (b: Booking) => void;
+  /** The booking changed elsewhere — refetch the list; nothing was cancelled. */
+  onStale?: () => void;
 }) {
   const { t, locale } = useLocale();
   const b = t.bookings;
+  /**
+   * host-cancel returns the FULL updated booking, so the cancelled view renders
+   * from the response rather than a refetch (§1). Held locally so the screen is
+   * correct even if the parent never feeds the update back through props.
+   */
+  const [cancelled, setCancelled] = useState<Booking>();
+  const shown = cancelled ?? booking;
   const [view, setView] = useState<View>(booking.status === "cancelled" ? "cancelled" : "details");
-  const [reason, setReason] = useState<string>();
-  const [otherText, setOtherText] = useState("");
-  const [cancelError, setCancelError] = useState<string>();
+  const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState<string>();
+  const [cancelError, setCancelError] = useState<CancelError>();
 
-  const REASONS = [
-    { value: "booked_elsewhere", label: b.reasonBookedElsewhere },
-    { value: "unavailable", label: b.reasonUnavailable },
-    { value: "maintenance", label: b.reasonMaintenance },
-    { value: "emergency", label: b.reasonEmergency },
-    { value: "other", label: b.reasonOther },
+  const QUICK_REASONS = [
+    b.reasonBookedElsewhere,
+    b.reasonUnavailable,
+    b.reasonMaintenance,
+    b.reasonEmergency,
   ];
 
   const notStarted = new Date(booking.checkIn) > new Date();
+  // §2 — anything else is refused server-side, and discovering a correct
+  // refusal as an error is worse than never seeing the control.
   const canCancel = booking.status === "confirmed" && notStarted;
-  const reasonLabel = reason === "other" ? otherText : REASONS.find((r) => r.value === reason)?.label ?? "";
   const f = booking.financials;
+  const reasonReady = reason.trim().length >= MIN_REASON;
 
-  // One key per opened cancel flow — a double-click/retry with the same key
-  // never double-refunds (backend host-cancel is idempotent, deviations §8).
+  // One key per opened cancel flow — a double-click or a retry after a network
+  // failure carries the same key, and the server returns the already-cancelled
+  // booking instead of issuing a second refund (§1.1).
   const idempotencyKey = useMemo(
     () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${booking.id}-${Date.now()}`),
     [booking.id],
@@ -66,17 +100,65 @@ export function BookingDetail({
     setCancelError(undefined);
     setView("processing");
     try {
-      const updated = await api.hostCancel(booking.id, reasonLabel, idempotencyKey);
+      const updated = await api.hostCancel(booking.id, reason.trim(), idempotencyKey);
+      setCancelled(updated);
       onCancelled(updated);
       setView("cancelled");
     } catch (e) {
-      // Back to "confirm" (not stuck on the unclosable "processing" modal) so the
-      // partner can see what happened and retry — the idempotency key is stable
-      // across retries, so a retry after a network failure is always safe.
-      setCancelError(e instanceof ApiError ? e.message : t.states.errorBody);
-      setView("confirm");
+      setView(handleCancelError(e));
     }
   }
+
+  /**
+   * The API names the cause precisely, in Arabic, for the partner. Rendering a
+   * generic "try again" over the top of it throws that away — so every branch
+   * here shows `error.message` and only decides what happens next (§5).
+   */
+  function handleCancelError(e: unknown): View {
+    if (!(e instanceof ApiError)) {
+      setCancelError({ message: t.states.errorBody, retryable: true });
+      return "confirm";
+    }
+    if (e.code === "VALIDATION") {
+      setReasonError(e.fields?.reason ?? e.message);
+      return "reason";
+    }
+    if (STALE_CODES.has(e.code)) {
+      onStale?.();
+      setCancelError({ message: e.message, retryable: false });
+      return "confirm";
+    }
+    // REFUND_FAILED: the gateway declined, so nothing happened — the booking is
+    // still confirmed and no money moved. Retry later is the only offer; a
+    // "cancel anyway" would strand a guest without their money, which is the
+    // one outcome this whole flow exists to prevent (§5.1).
+    setCancelError({
+      message: e.message,
+      retryable: true,
+      hint: e.code === "REFUND_FAILED" ? b.refundFailedHint : undefined,
+    });
+    return "confirm";
+  }
+
+  /**
+   * The three facts the partner cannot recover from, shown BEFORE they type
+   * anything: the exact amount (straight off the API — no arithmetic here),
+   * that they receive nothing, and that there is no un-cancel (§3).
+   */
+  const refundNotice = (
+    <div className="rounded-2xl border border-status-rejected/25 bg-status-rejected/5 p-4">
+      <div className="flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-status-rejected/10 text-status-rejected">
+          <AlertTriangle className="h-5 w-5" />
+        </span>
+        <div className="text-sm">
+          <p className="font-bold text-ink">{b.refundFullNotice(formatCurrency(f.total, locale))}</p>
+          <p className="mt-1 text-ink-muted">{b.partnerGetsNothing}</p>
+          <p className="mt-0.5 font-medium text-status-rejected">{b.irreversible}</p>
+        </div>
+      </div>
+    </div>
+  );
 
   /* ---- reason ---- */
   if (view === "reason") {
@@ -92,19 +174,15 @@ export function BookingDetail({
             <Button variant="outline" className="flex-1" onClick={() => setView("details")}>
               {t.common.cancel}
             </Button>
-            <Button
-              className="flex-1"
-              onClick={() => setView("confirm")}
-              disabled={!reason || (reason === "other" && !otherText.trim())}
-            >
+            <Button className="flex-1" onClick={() => setView("confirm")} disabled={!reasonReady}>
               {b.continue}
             </Button>
           </>
         }
       >
-        <p className="mb-4 text-ink-muted">{b.selectReason}</p>
+        {refundNotice}
 
-        <div className="mb-5 flex items-center gap-3 rounded-2xl bg-brand-soft px-4 py-3">
+        <div className="my-5 flex items-center gap-3 rounded-2xl bg-brand-soft px-4 py-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-white text-brand">
             <BookOpen className="h-5 w-5" />
           </span>
@@ -115,38 +193,48 @@ export function BookingDetail({
           <MoneyText amount={f.total} className="font-bold text-ink" />
         </div>
 
-        <div className="space-y-2.5">
-          {REASONS.map((r) => (
+        <p className="mb-3 text-sm text-ink-muted">{b.selectReason}</p>
+
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+            {b.reasonQuickFill}
+          </span>
+          {QUICK_REASONS.map((r) => (
             <button
-              key={r.value}
+              key={r}
               type="button"
-              onClick={() => setReason(r.value)}
+              onClick={() => {
+                setReason(r);
+                setReasonError(undefined);
+              }}
               className={cn(
-                "flex w-full items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-start text-sm font-medium transition",
-                reason === r.value ? "border-brand bg-brand-soft text-ink" : "border-line text-ink-muted hover:border-line",
+                "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                reason === r ? "border-brand bg-brand-soft text-ink" : "border-line text-ink-muted hover:bg-cream",
               )}
             >
-              <span
-                className={cn(
-                  "grid h-5 w-5 shrink-0 place-items-center rounded-full border-2",
-                  reason === r.value ? "border-brand" : "border-line",
-                )}
-              >
-                {reason === r.value && <span className="h-2.5 w-2.5 rounded-full bg-brand" />}
-              </span>
-              {r.label}
+              {r}
             </button>
           ))}
-          {reason === "other" && (
-            <textarea
-              value={otherText}
-              onChange={(e) => setOtherText(e.target.value)}
-              placeholder="…"
-              rows={3}
-              className="w-full rounded-2xl border border-line bg-cream/40 px-4 py-3 text-sm outline-none focus:border-brand focus:bg-white"
-            />
-          )}
         </div>
+
+        {/* Free text, not a fixed list: whatever lands here is what the guest
+            reads, so the partner has to be able to say the actual thing. */}
+        <Field label={b.reasonFieldLabel} required error={reasonError}>
+          <textarea
+            value={reason}
+            onChange={(e) => {
+              setReason(e.target.value);
+              setReasonError(undefined);
+            }}
+            placeholder={b.reasonPlaceholder}
+            rows={3}
+            maxLength={500}
+            className="w-full rounded-2xl border border-line bg-cream/40 px-4 py-3 text-sm outline-none focus:border-brand focus:bg-white"
+          />
+        </Field>
+        {!reasonError && reason.trim().length > 0 && !reasonReady && (
+          <p className="mt-1 text-xs text-status-rejected">{b.reasonTooShort}</p>
+        )}
       </Modal>
     );
   }
@@ -165,55 +253,54 @@ export function BookingDetail({
             <Button variant="outline" className="flex-1" onClick={() => setView("reason")}>
               {t.common.back}
             </Button>
-            <Button variant="danger" className="flex-1" onClick={confirmCancel}>
-              {b.confirmCancellation}
-            </Button>
+            {/* A non-retryable refusal means the booking moved on — offering the
+                button again would only reproduce the same 409. */}
+            {cancelError && !cancelError.retryable ? (
+              <Button className="flex-1" onClick={onClose}>
+                {t.common.close}
+              </Button>
+            ) : (
+              <Button variant="danger" className="flex-1" onClick={confirmCancel}>
+                {cancelError ? t.common.retry : b.confirmCancellation}
+              </Button>
+            )}
           </>
         }
       >
-        <div className="rounded-2xl border border-status-pending/40 bg-status-pending/10 p-5">
-          <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-status-pending/20 text-status-pending">
-              <AlertTriangle className="h-5 w-5" />
-            </span>
-            <div>
-              <div className="font-bold text-ink">{b.confirmCancellation}</div>
-              <div className="text-sm text-ink-muted">{b.confirmReviewSub}</div>
-            </div>
-          </div>
-          <ul className="mt-4 space-y-3 text-sm text-ink">
-            <Consequence icon={<DollarSign className="h-4 w-4 text-status-rejected" />} tone="bg-status-rejected/10">
-              {b.consequenceRefund}
-            </Consequence>
-            <Consequence icon={<UserX className="h-4 w-4 text-[#8A5FB0]" />} tone="bg-[#8A5FB0]/10">
-              {b.consequenceRecord}
-            </Consequence>
-            <Consequence icon={<TrendingDown className="h-4 w-4 text-status-pending" />} tone="bg-status-pending/15">
-              {b.consequenceRanking}
-            </Consequence>
-            <Consequence icon={<AlertCircle className="h-4 w-4 text-status-rejected" />} tone="bg-status-rejected/10">
-              {b.consequencePenalty}
-            </Consequence>
-          </ul>
-        </div>
+        {refundNotice}
 
-        <div className="mt-4 flex items-center gap-2 rounded-2xl bg-cream px-4 py-3 text-sm">
-          <Info className="h-4 w-4 text-ink-faint" />
-          <span className="text-ink-muted">{b.selectedReason}:</span>
-          <span className="font-semibold text-ink">{reasonLabel}</span>
-        </div>
-
-        <div className="mt-4 rounded-2xl bg-status-rejected/5 p-4 text-sm">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-status-rejected">{b.financialImpact}</div>
+        <div className="mt-4 rounded-2xl bg-cream px-4 py-3 text-sm">
+          {/* Both figures come from the API. The partner's side is a flat zero —
+              not "a fee applies": Mamsa forfeits its commission too, and the
+              partner earns nothing at all from this booking. */}
           <Row label={b.guestRefundAmount} value={<MoneyText amount={f.total} className="font-bold text-status-rejected" />} />
-          <Row label={b.platformCommission} value={<MoneyText amount={f.commission} className="font-bold text-status-rejected" />} />
-          <div className="my-2 h-px bg-status-rejected/15" />
-          <Row label={<span className="font-bold text-ink">{b.netLoss}</span>} value={<MoneyText amount={f.partnerShare} className="font-bold text-status-rejected" />} />
+          <Row label={b.yourEarnings} value={<MoneyText amount={0} className="font-bold text-status-rejected" />} />
+        </div>
+
+        <ul className="mt-4 space-y-3 text-sm text-ink">
+          <Consequence icon={<UserX className="h-4 w-4 text-[#8A5FB0]" />} tone="bg-[#8A5FB0]/10">
+            {b.consequenceRecord}
+          </Consequence>
+          <Consequence icon={<TrendingDown className="h-4 w-4 text-status-pending" />} tone="bg-status-pending/15">
+            {b.consequenceRanking}
+          </Consequence>
+        </ul>
+
+        <div className="mt-4 flex items-start gap-2 rounded-2xl bg-brand-soft/60 px-4 py-3 text-sm">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
+          <span>
+            <span className="text-ink-muted">{b.selectedReason}: </span>
+            <span className="font-semibold text-ink">{reason.trim()}</span>
+          </span>
         </div>
 
         {cancelError && (
-          <div className="mt-4 flex items-center gap-2 rounded-2xl bg-status-rejected/10 px-4 py-3 text-sm text-status-rejected">
-            <AlertCircle className="h-4 w-4 shrink-0" /> {cancelError}
+          <div className="mt-4 rounded-2xl bg-status-rejected/10 px-4 py-3 text-sm text-status-rejected">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span className="font-medium">{cancelError.message}</span>
+            </div>
+            {cancelError.hint && <p className="mt-1 ps-6 text-ink-muted">{cancelError.hint}</p>}
           </div>
         )}
       </Modal>
@@ -250,14 +337,16 @@ export function BookingDetail({
   }
 
   /* ---- cancelled ---- */
-  if (view === "cancelled" && booking.cancellation) {
-    const c = booking.cancellation;
+  if (view === "cancelled" && shown.cancellation) {
+    const c = shown.cancellation;
+    const settled = c.refundStatus === "completed";
+    const byHost = c.type === "host";
     return (
       <Modal
         open
         onClose={onClose}
         size="lg"
-        title={b.bookingTitle(booking.code)}
+        title={b.bookingTitle(shown.code)}
         footer={
           <>
             <Button variant="outline" className="flex-1" onClick={onClose}>{t.common.close}</Button>
@@ -265,35 +354,69 @@ export function BookingDetail({
           </>
         }
       >
-        <GuestHeader booking={booking} />
-        <DetailGrid booking={booking} locale={locale} only={["duration", "total"]} />
+        {/*
+          `processing` is the NORMAL first state — the gateway accepts the refund
+          immediately and settles asynchronously — so this reads as reassurance,
+          not a warning (§4). The money is already committed; there is nothing
+          here to retry and nothing to block on.
+        */}
+        <div className="rounded-2xl border border-status-approved/30 bg-status-approved/10 p-4">
+          <div className="flex items-start gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-status-approved/20 text-status-approved">
+              <CheckCircle2 className="h-5 w-5" />
+            </span>
+            <div className="text-sm">
+              <p className="font-bold text-ink">{b.cancelledTitle}</p>
+              <p className="mt-1 text-ink">
+                {settled
+                  ? b.refundCompletedNotice(formatCurrency(c.refundAmount, locale))
+                  : b.refundProcessingNotice(formatCurrency(c.refundAmount, locale))}
+              </p>
+              <p className="mt-1 text-xs text-ink-muted">{b.refundBankTiming}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <GuestHeader booking={shown} />
+        </div>
+        <DetailGrid booking={shown} locale={locale} only={["duration", "total"]} />
 
         <div className="my-4 flex flex-wrap gap-2">
           <Chip tone="bg-status-rejected/10 text-status-rejected">{b.cancelled}</Chip>
-          <Chip tone="bg-status-rejected/10 text-status-rejected">{b.refunded}</Chip>
-          <Chip tone="bg-status-pending/15 text-status-pending">{b.hostCancellation}</Chip>
+          <Chip tone="bg-status-pending/15 text-status-pending">
+            {byHost ? b.hostCancellation : b.guestCancellation}
+          </Chip>
+          {settled && <Chip tone="bg-status-approved/15 text-status-approved">{b.refunded}</Chip>}
         </div>
 
-        <div className="rounded-2xl border border-status-pending/30 bg-status-pending/5 p-4 text-sm">
+        <div className="rounded-2xl border border-line bg-cream/40 p-4 text-sm">
           <div className="mb-3 flex items-center gap-2 font-bold text-ink">
-            <AlertTriangle className="h-4 w-4 text-status-pending" /> {b.cancellationDetails}
+            <Info className="h-4 w-4 text-ink-faint" /> {b.cancellationDetails}
           </div>
-          <Row label={b.cancellationType} value={b.hostCancellation} />
+          <Row label={b.cancellationType} value={byHost ? b.hostCancellation : b.guestCancellation} />
           <Row label={b.cancellationReason} value={c.reason} />
           <Row label={b.cancellationDate} value={formatDateShort(c.date, locale)} />
           <Row label={b.refundAmount} value={<MoneyText amount={c.refundAmount} />} />
-          <Row label={b.refundStatusLabel} value={c.refundStatus === "processing" ? b.processing : b.completedStatus} />
+          <Row
+            label={b.refundStatusLabel}
+            value={
+              <span className={settled ? "text-status-approved" : "text-ink"}>
+                {settled ? b.completedStatus : b.processing}
+              </span>
+            }
+          />
 
-          <div className="mt-4 border-t border-status-pending/20 pt-3">
+          <div className="mt-4 border-t border-line pt-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{b.timeline}</div>
             <TimelineItem done label={b.tlBookingReceived} />
-            <TimelineItem done amber label={b.tlHostReported} />
+            {byHost && <TimelineItem done amber label={b.tlHostReported} />}
             <TimelineItem done label={b.tlRefundInitiated} />
-            <TimelineItem label={b.tlRefundCompleted} />
+            <TimelineItem done={settled} label={b.tlRefundCompleted} />
           </div>
         </div>
 
-        {booking.notes && <NotesCard label={b.notes} text={booking.notes} />}
+        {shown.notes && <NotesCard label={b.notes} text={shown.notes} />}
       </Modal>
     );
   }

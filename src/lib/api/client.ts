@@ -30,6 +30,7 @@ import {
   mockPartner,
   mockUnits,
   mockBookings,
+  cancelMockBooking,
   buildUnitMonth,
   readMockFeeds,
   mockNotifications,
@@ -619,29 +620,42 @@ export const api = {
   },
 
   /**
-   * Host "unable to host" — atomic + idempotent server-side; auto refund 100%.
-   * Pass a stable `idempotencyKey` per cancel flow so a double-click / retry
-   * with the same key never double-refunds (deviations §8).
+   * Host "unable to host" — the guest is refunded 100% of what they paid, the
+   * partner forfeits their share and Mamsa forfeits its commission. Atomic
+   * server-side: a gateway refusal fails the whole call (502 REFUND_FAILED)
+   * and leaves the booking `confirmed` rather than cancelling a stay it can't
+   * refund.
+   *
+   * Returns the FULL updated booking — render from it; no refetch needed, and
+   * never recompute the refund client-side (the API's `cancellation` block is
+   * the only source for it).
+   *
+   * `idempotencyKey` is required, not optional: without it a double-click is
+   * guarded only by the status check, which is a narrower race than the
+   * server's key lookup. One stable key per cancel attempt, reused across
+   * retries of that attempt.
    */
-  async hostCancel(id: string, reason: string, idempotencyKey?: string): Promise<Booking> {
+  async hostCancel(id: string, reason: string, idempotencyKey: string): Promise<Booking> {
     if (USE_MOCK) {
       await delay(900);
-      const b = mockBookings.find((x) => x.id === id)!;
-      return {
-        ...b,
-        status: "cancelled",
-        cancellation: {
-          type: "host",
-          reason,
-          date: new Date().toISOString(),
-          refundAmount: b.financials.total, // 100% of total
-          refundStatus: "processing",
-        },
-      };
+      // Mirror the real refusals — a mock that always succeeds lets the error
+      // branches rot until they meet production.
+      const b = mockBookings.find((x) => x.id === id);
+      if (!b) throw new ApiError(404, "لم يُعثر على الحجز.", "NOT_FOUND");
+      if (b.status !== "confirmed") {
+        throw new ApiError(409, "لم يعد هذا الحجز قابلاً للإلغاء.", "BOOKING_NOT_CANCELLABLE");
+      }
+      if (new Date(b.checkIn) <= new Date()) {
+        throw new ApiError(409, "لا يمكن الإلغاء بعد موعد تسجيل الدخول.", "CHECKIN_PASSED");
+      }
+      if (!reason.trim()) {
+        throw new ApiError(400, "سبب الإلغاء مطلوب.", "VALIDATION", { reason: "سبب الإلغاء مطلوب." });
+      }
+      return cancelMockBooking(id, reason);
     }
     return http(`/bookings/${id}/host-cancel`, {
       method: "POST",
-      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+      headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify({ reason }),
     });
   },

@@ -46,4 +46,28 @@ describe("api client network failures", () => {
       }),
     );
   });
+
+  /**
+   * The endpoint reads `Idempotency-Key`: a duplicate key returns the
+   * already-cancelled booking instead of issuing a SECOND refund. Dropping the
+   * header leaves a double-click guarded only by the status check, which is a
+   * narrower race.
+   */
+  it("sends an Idempotency-Key with a host cancellation", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "b_63", status: "cancelled" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { api } = await import("./client");
+
+    await api.hostCancel("b_63", "الوحدة محجوزة على منصة أخرى", "key-1");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain("/bookings/b_63/host-cancel");
+    expect(init.method).toBe("POST");
+    expect(init.headers["Idempotency-Key"]).toBe("key-1");
+    expect(init.body).toBe(JSON.stringify({ reason: "الوحدة محجوزة على منصة أخرى" }));
+  });
 });
