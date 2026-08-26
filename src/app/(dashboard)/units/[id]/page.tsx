@@ -11,6 +11,7 @@ import { Card, Button } from "@/components/ui";
 import { UnitBadge } from "@/components/shared/status-badge";
 import { DateText } from "@/components/shared/typed-text";
 import { PriceBreakdown } from "@/features/units/components/price-breakdown";
+import { RichText } from "@/components/shared/rich-text";
 import { isValidLatLng } from "@/features/units/lib/geo";
 import { LoadingSkeleton, ErrorState } from "@/components/shared/states";
 import { AlertTriangle, CalendarDays, ExternalLink, Link2, RefreshCw } from "lucide-react";
@@ -95,8 +96,20 @@ export default function UnitDetailPage() {
             <Row label="الإحداثيات" value={isValidLatLng(u) ? `${u.lat}, ${u.lng}` : "—"} />
             <Row label="العنوان" value={u.address} />
           </dl>
-          <p className="mt-4 text-sm text-ink-muted">{u.description}</p>
         </Card>
+
+        {/*
+          Its own card, and through the parser rather than into a <p>. A raw string here
+          was collapsed by HTML's own whitespace handling, so a description written as
+          headings and lists reached this page as one grey block — the partner and the
+          guest were reading two different listings off identical data.
+        */}
+        {u.description?.trim() && (
+          <Card className="p-5 lg:col-span-2">
+            <h3 className="mb-3 font-semibold text-ink">الوصف</h3>
+            <RichText text={u.description} className="text-sm" />
+          </Card>
+        )}
 
         <Card className="p-5 lg:col-span-2">
           <h3 className="mb-3 font-semibold text-ink">سياسة الإلغاء</h3>

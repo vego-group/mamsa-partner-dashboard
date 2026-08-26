@@ -59,6 +59,23 @@ export const OTP = {
 export const PHONE_PREFIX = "+966";
 
 /**
+ * Unit description cap, in characters as the partner types them — a newline counts as
+ * one, exactly as it does in the string that gets stored.
+ *
+ * 2000, not the 500 this dashboard shipped with. 500 was never a number the API gave us;
+ * it was a guess mirrored client-side, and a description written as headings, feature
+ * cards and lists does not fit in it. The public site now renders those markers, so the
+ * field has to hold a structured description rather than one paragraph.
+ *
+ * See docs/backend/mamsa-unit-description-formatting.md — confirming the server's real
+ * limit (and that it counts with mb_strlen, not strlen) is still open with the backend.
+ */
+export const MAX_DESCRIPTION_LENGTH = 2000;
+
+/** Matches the API's own floor; the wizard gates step 2 on it. */
+export const MIN_DESCRIPTION_LENGTH = 10;
+
+/**
  * Saudi cities only. No Dubai/Qatar/UAE anywhere.
  * Exact 20-slug enum confirmed by the backend (docs/backend/NEXTJS-DASHBOARD-ENUMS.md) —
  * `Maps::CITIES` in `app/Support/Dashboard/Maps.php`. Slugs are the literal values the

@@ -61,7 +61,28 @@ export const mockUnits: Unit[] = [
     capacity: 2,
     city: "riyadh",
     district: "العليا",
-    description: "استوديو أنيق في قلب حي العليا بالرياض، قريب من الخدمات والمطاعم.",
+    // Written with the line markers the public site renders, so mock mode actually
+    // exercises the preview and the detail page. The other units keep their single
+    // unmarked paragraph on purpose — that is the backward-compatibility case, and it
+    // has to stay visible next to this one.
+    description: [
+      "استوديو أنيق في قلب *حي العليا* بالرياض، قريب من الخدمات والمطاعم.",
+      "",
+      "## ما يميّز المكان",
+      "*واي فاي مجاني*",
+      "*مطبخ مجهّز بالكامل*",
+      "*تسجيل دخول ذاتي*",
+      "",
+      "## المساحات",
+      "- **غرفة النوم:** سرير كينج مع دولاب واسع.",
+      "- **الصالة:** جلسة عائلية وتلفزيون بشاشة مسطّحة.",
+      "",
+      "## طريقة الوصول",
+      "1. اخرج من البوابة الشمالية.",
+      "2. اتجه يميناً 400 متر.",
+      "",
+      "> تسجيل الدخول بعد الساعة 3 عصراً.",
+    ].join("\n"),
     amenities: ["wifi", "ac", "kitchen", "parking"],
     checkIn: "15:00",
     checkOut: "12:00",

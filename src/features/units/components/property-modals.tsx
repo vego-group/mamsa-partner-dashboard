@@ -15,6 +15,7 @@ import type { Unit, DayStatus } from "@/types";
 import { cn } from "@/lib/cn";
 import { MapPin, Star, Link2, Check, Building2 } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar } from "recharts";
+import { RichText } from "@/components/shared/rich-text";
 
 export type PropertyModalType = "preview" | "calendar" | "analytics" | "share";
 
@@ -73,7 +74,12 @@ function PreviewModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
           )}
         </div>
       )}
-      {unit.description && <p className="mt-3 text-sm leading-relaxed text-ink-muted">{unit.description}</p>}
+      {/*
+        The partner's own preview of the listing — and for a unit pending review it is the
+        only view they get, since the list gives a pending unit an eye and no pencil. So
+        this is the surface where the formatting has to be real rather than approximated.
+      */}
+      {unit.description?.trim() && <RichText text={unit.description} className="mt-3 text-sm" />}
 
       <div className="mt-4 grid grid-cols-4 gap-3">
         <BigTile value={unit.bedrooms} label={p.bedrooms} />

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isValidIban, normalizeIban } from "@/lib/iban";
+import { MAX_DESCRIPTION_LENGTH, MIN_DESCRIPTION_LENGTH } from "@/lib/constants";
 
 /** National ID / Iqama: 10 digits, starts with 1. */
 export const nationalIdSchema = z
@@ -51,7 +52,12 @@ export const unitSchema = z.object({
   capacity: z.number().int().min(1),
   city: z.string().min(1, "المدينة مطلوبة"),
   district: z.string().optional(),
-  description: z.string().min(10, "الوصف مطلوب").max(500),
+  description: z
+    .string()
+    .min(MIN_DESCRIPTION_LENGTH, "الوصف مطلوب")
+    // No .trim() and no transform: the markers only mean anything at the start of a
+    // line, so whitespace in this field is data, not noise.
+    .max(MAX_DESCRIPTION_LENGTH),
   amenities: z.array(z.string()),
   checkIn: z.string(),
   checkOut: z.string(),

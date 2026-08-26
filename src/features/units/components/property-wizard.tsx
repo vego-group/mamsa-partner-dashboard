@@ -21,6 +21,8 @@ import type { Amenity, CancellationPolicyName, PropertyType, Unit, UnitCreateInp
 import { isInsideSaudi, isValidLatLng, type LatLng } from "@/features/units/lib/geo";
 import { FileUploadRow, type UploadedFile } from "@/features/units/components/file-upload";
 import { PriceBreakdown } from "@/features/units/components/price-breakdown";
+import { DescriptionEditor } from "@/features/units/components/description-editor";
+import { RichText } from "@/components/shared/rich-text";
 import {
   X,
   Check,
@@ -196,6 +198,17 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
   const hasChanges = JSON.stringify(buildInput()) !== initialInputSnapshot;
   const isNoOpApprovedEdit = editing && existing?.status === "approved" && !hasChanges;
 
+  /**
+   * A unit sitting in review is read-only here.
+   *
+   * The list already withholds the pencil for a pending unit (units/page.tsx), but the
+   * route itself was never guarded — typing /units/{id}/edit by hand opened a fully
+   * editable form for a unit the partner is not allowed to touch. Locking the fields is
+   * better than refusing the page: the partner can still read what they submitted, and the
+   * description preview stays open, which is the whole reason they would come here.
+   */
+  const locked = editing && existing?.status === "pending";
+
   function toggleAmenity(a: Amenity) {
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
   }
@@ -239,6 +252,9 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
   }
 
   async function onSaveDraft() {
+    // The buttons are disabled while locked; this refuses the call as well, so a stale
+    // render cannot PATCH a unit the server is already reviewing.
+    if (locked) return;
     if (isNoOpApprovedEdit) {
       // Nothing changed — closing is equivalent to saving, and skips a PATCH
       // that would otherwise needlessly flip an approved unit back to pending.
@@ -253,6 +269,9 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
   }
 
   async function onSubmitForReview() {
+    // The buttons are disabled while locked; this refuses the call as well, so a stale
+    // render cannot PATCH a unit the server is already reviewing.
+    if (locked) return;
     if (isNoOpApprovedEdit) {
       router.push("/units");
       return;
@@ -366,6 +385,16 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
             </div>
           )}
 
+          {locked && (
+            <div className="flex items-start gap-3 rounded-2xl border border-status-pending/40 bg-status-pending/10 px-4 py-3 text-sm text-status-pending">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+              {w.lockedForReview}
+            </div>
+          )}
+
+          {/* `disabled` reaches every control inside, which is why the description editor
+              stacks its panes instead of offering a tab strip while locked. */}
+          <fieldset disabled={locked} className="space-y-6 disabled:opacity-70">
           {/* STEP 1 — License */}
           {step === 0 && (
             <>
@@ -505,17 +534,7 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
               </Section>
 
               <Section label={w.description}>
-                <div className="flex items-center justify-between">
-                  <FieldLabel required>{w.propertyDescription}</FieldLabel>
-                  <span className="text-xs text-ink-faint tabular-nums">{description.length}/500</span>
-                </div>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value.slice(0, 500))}
-                  rows={4}
-                  placeholder={w.descriptionPh}
-                  className="w-full rounded-2xl border border-line bg-cream/40 px-4 py-3 text-sm outline-none focus:border-brand focus:bg-white"
-                />
+                <DescriptionEditor value={description} onChange={setDescription} disabled={locked} />
               </Section>
 
               <Section label={w.amenities}>
@@ -695,6 +714,21 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                 <ReviewRow label={w.capacity} value={w.capacitySummary(bedrooms, beds, bathrooms, guests)} />
                 <ReviewRow label={w.amenities} value={w.amenitiesCount(amenities.length)} />
                 <ReviewRow label={w.cancellationPolicy} value={policyLabel} />
+
+                {/*
+                  Full width and formatted, not a truncated ReviewRow. The description is
+                  the only field on this screen whose *shape* can be wrong while every
+                  character of it is right, so the last look before submitting is at the
+                  shape — rendered by the same parser the guest page runs.
+                */}
+                <div className="col-span-2 min-w-0">
+                  <div className="text-xs text-ink-faint">{w.propertyDescription}</div>
+                  {description.trim() ? (
+                    <RichText text={description} className="mt-1.5 text-sm" />
+                  ) : (
+                    <div className="mt-0.5 font-semibold text-ink">—</div>
+                  )}
+                </div>
               </ReviewCard>
 
               <ReviewCard title={w.s3Title} onEdit={() => setStep(2)} editLabel={t.common.edit}>
@@ -742,13 +776,14 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
               </div>
             </>
           )}
+          </fieldset>
         </div>
       </main>
 
       {/* Footer */}
       <footer className="shrink-0 border-t border-line bg-white px-4 py-4 sm:px-8">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
-          <FooterBtn onClick={onSaveDraft} variant="outline" disabled={saving}>
+          <FooterBtn onClick={onSaveDraft} variant="outline" disabled={saving || locked}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {w.saveDraft}
           </FooterBtn>
           <div className="flex flex-wrap items-center gap-3">
@@ -764,10 +799,10 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
               </FooterBtn>
             ) : (
               <>
-                <FooterBtn onClick={onSaveDraft} variant="outline" disabled={saving || submitting}>
+                <FooterBtn onClick={onSaveDraft} variant="outline" disabled={saving || submitting || locked}>
                   {w.saveAsDraft}
                 </FooterBtn>
-                <FooterBtn onClick={onSubmitForReview} disabled={submitting || saving || anyPhotoUploading}>
+                <FooterBtn onClick={onSubmitForReview} disabled={submitting || saving || anyPhotoUploading || locked}>
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                   {w.submitForReview}
                 </FooterBtn>

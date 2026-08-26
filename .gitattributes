@@ -1,0 +1,6 @@
+# src/lib/rich-text.ts is a verbatim copy of the public site's parser
+# (mamsa-app/src/lib/utils/rich-text.ts) and src/lib/rich-text.parity.test.ts compares the
+# two. On Windows with core.autocrlf=true git hands the file back as CRLF on checkout, and
+# a copy that differs only in line endings still reads as "not a copy". Pin it to LF so the
+# comparison stays meaningful on every machine.
+src/lib/rich-text.ts text eol=lf

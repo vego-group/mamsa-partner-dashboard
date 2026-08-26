@@ -490,6 +490,20 @@ export const dict: Record<Locale, Dict> = {
       description: "الوصف",
       propertyDescription: "وصف العقار",
       descriptionPh: "صف عقارك — موقعه ومميزاته وما يجعله تجربة فريدة…",
+      // The write/preview switch over the description field. The field stays plain
+      // text on both sides — this is a writing convention, not an editor.
+      // Shown when a unit is sitting in review: the form is read-only, but the
+      // description preview stays open.
+      lockedForReview: "هذه الوحدة قيد المراجعة، فلا يمكن تعديلها الآن. يمكنك مراجعة بياناتها ومعاينة الوصف كما سيقرأه الضيف.",
+      descriptionWrite: "كتابة",
+      descriptionPreview: "معاينة",
+      descriptionPreviewEmpty: "لا يوجد وصف بعد — اكتب الوصف أولاً.",
+      descriptionPreviewNote: "هكذا سيقرأ الضيف الوصف على صفحة الوحدة.",
+      descriptionFormatToggle: "تنسيق الوصف",
+      descriptionFormatHint:
+        "نسّق الوصف بعلامات بسيطة: ## عنوان · - نقطة · 1. خطوة · *ميزة* في سطر مستقل · *كلمة* داخل الجملة للتمييز · **كلمة** للتعريض · > ملاحظة",
+      descriptionTemplate: "قالب وصف",
+      descriptionTemplateHint: "يملأ الحقل الفارغ بهيكل جاهز تعدّله.",
       amenities: "المرافق",
       amenitiesSelected: (n: number) => `${n} مرافق مختارة`,
       checkInOut: "الدخول / الخروج",
@@ -1101,6 +1115,18 @@ export const dict: Record<Locale, Dict> = {
       description: "Description",
       propertyDescription: "Property Description",
       descriptionPh: "Describe your property — its location, features, and what makes it a unique experience...",
+      // See the Arabic entry — the hint is the same string in both locales because the
+      // markers are punctuation, not words, and the guest page they produce is Arabic.
+      lockedForReview: "This unit is under review, so it cannot be edited right now. You can still read its details and preview the description as a guest will see it.",
+      descriptionWrite: "Write",
+      descriptionPreview: "Preview",
+      descriptionPreviewEmpty: "Nothing to preview yet — write the description first.",
+      descriptionPreviewNote: "This is how a guest will read the description on the unit page.",
+      descriptionFormatToggle: "Formatting the description",
+      descriptionFormatHint:
+        "نسّق الوصف بعلامات بسيطة: ## عنوان · - نقطة · 1. خطوة · *ميزة* في سطر مستقل · *كلمة* داخل الجملة للتمييز · **كلمة** للتعريض · > ملاحظة",
+      descriptionTemplate: "Description template",
+      descriptionTemplateHint: "Fills an empty field with a structure you edit.",
       amenities: "Amenities",
       amenitiesSelected: (n: number) => `${n} amenities selected`,
       checkInOut: "Check-in / Check-out",
@@ -1694,6 +1720,15 @@ export type Dict = {
     description: string;
     propertyDescription: string;
     descriptionPh: string;
+    lockedForReview: string;
+    descriptionWrite: string;
+    descriptionPreview: string;
+    descriptionPreviewEmpty: string;
+    descriptionPreviewNote: string;
+    descriptionFormatToggle: string;
+    descriptionFormatHint: string;
+    descriptionTemplate: string;
+    descriptionTemplateHint: string;
     amenities: string;
     amenitiesSelected: (n: number) => string;
     checkInOut: string;
