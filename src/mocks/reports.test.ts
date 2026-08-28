@@ -30,10 +30,12 @@ describe("reports VAT fields", () => {
   it("matches the arithmetic verified live on staging", () => {
     // GET /reports/summary, partner 5 — the three components of gross.
     expect(round2(100260 + 7298.2 + 16276)).toBe(123834.2);
-    // Commission is 2% of the FEE-EXCLUSIVE net, not of net+fees.
-    expect(round2(100260 * 0.02)).toBe(2005.2);
+    // Commission is 10% of the FEE-EXCLUSIVE net, not of net+fees.
+    // (Basis verified live at the old 2% rate; figures restated at the 10%
+    // rate in force since 2026-08-27.)
+    expect(round2(100260 * 0.1)).toBe(10026);
     // netProfit is that net minus commission — and equals the wallet balance.
-    expect(round2(100260 - 2005.2)).toBe(98254.8);
+    expect(round2(100260 - 10026)).toBe(90234);
   });
 
   /**

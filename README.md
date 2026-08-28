@@ -44,7 +44,7 @@ Auth tokens are expected in an httpOnly cookie (the client sends
 | D-5 Unit Details | `/units/[id]` | Gallery, data, license, rejected reason + resubmit, approved public link + calendar. |
 | D-6 Calendar | `/calendar` | Unit selector, day states + source names, manual block modal, iCal import + export. |
 | D-7 Bookings | `/bookings` | Confirmed/Completed/Cancelled (no Pending). |
-| D-8 Booking Details | (modal) | 2% / 98% breakdown; two-step host-cancel; 100% guest refund; processing + cancellation details. |
+| D-8 Booking Details | (modal) | 10% / 90% breakdown; two-step host-cancel; 100% guest refund; processing + cancellation details. |
 | D-9 Reports | `/reports` | Date ranges, Net Profit = revenue − commission (real SAR). |
 | D-10 Account | `/account` | +966 read-only, ID/CR read-only, host-reliability indicator. |
 | D-11 Notifications | `/notifications` | Unread, mark-all-read, deep links. |
@@ -55,7 +55,7 @@ Auth tokens are expected in an httpOnly cookie (the client sends
 - **SAR only** — one `formatCurrency()`; zero AED/USD in the codebase.
 - **Saudi only** — Saudi cities in mock data; no Dubai/Qatar/UAE.
 - **+966** phones, **DD/MM/YYYY** dates, Latin digits, **Arabic RTL** primary with EN toggle.
-- **Commission 2% / partner 98%**; **host-cancel refunds the guest 100%**.
+- **Commission 10% / partner 90%**; **host-cancel refunds the guest 100%**.
 - **Company payout docs** (CR + IBAN + auth letter + VAT + operator license) required for
   companies, hidden for individuals — one screen, small variant.
 - Booking states **Confirmed/Completed/Cancelled** (no Pending — Moyasar is instant).

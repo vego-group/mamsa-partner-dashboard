@@ -25,7 +25,7 @@ const booking = (patch: Partial<Booking> = {}): Booking => ({
   nights: 3,
   guests: 2,
   status: "confirmed",
-  financials: { total: 900, netBase: 782.61, vat: 117.39, commission: 15.65, partnerShare: 766.96 },
+  financials: { total: 900, netBase: 782.61, vat: 117.39, commission: 78.26, partnerShare: 704.35 },
   ...patch,
 });
 
@@ -94,7 +94,7 @@ describe("the confirmation names the cost before the partner commits", () => {
     expect(earnings.textContent).toContain(money(0));
     // The partner's share is forfeited whole — showing it here would read as
     // "this is what you still get".
-    expect(earnings.textContent).not.toContain(money(766.96));
+    expect(earnings.textContent).not.toContain(money(704.35));
   });
 });
 

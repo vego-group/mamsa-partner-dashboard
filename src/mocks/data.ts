@@ -493,7 +493,7 @@ export function buildReportCsv(from: string, to: string): string {
     `صافي الإيراد,${s.netRevenue}`,
     `ضريبة القيمة المضافة (15%),${s.vat}`,
     `عدد الحجوزات,${s.bookingsCount}`,
-    `عمولة ممسى (2%),${s.commission}`,
+    `عمولة ممسى (10%),${s.commission}`,
     `صافي الربح,${s.netProfit}`,
     "",
     "الوحدة,الحجوزات,الإيراد",

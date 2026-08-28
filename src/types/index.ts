@@ -202,7 +202,7 @@ export interface BookingFinancials {
   total: number;
   netBase: number; // total excluding VAT
   vat: number; // 15%, remitted to ZATCA
-  commission: number; // 2% of netBase
+  commission: number; // 10% of netBase
   partnerShare: number; // netBase - commission
 }
 
@@ -386,7 +386,7 @@ export interface AppNotification {
 export interface OverviewMetrics {
   unitsCount: number; // excluding drafts
   bookingsCount: number; // confirmed + completed (NOT cancelled)
-  totalRevenue: number; // SAR — partner share (98%) of confirmed + completed
+  totalRevenue: number; // SAR — partner share (90%) of confirmed + completed
   bookingsByMonth: { month: string; count: number }[]; // last 12 months, "YYYY-MM"
   revenueByMonth: { month: string; amount: number }[]; // last 12 months, SAR
   thisMonthRevenue: number; // v1.2 — partner share (SAR), current calendar month
@@ -424,7 +424,7 @@ export interface ReportsSummary {
    */
   fees?: number;
   bookingsCount: number;
-  commission: number; // 2% of netRevenue
+  commission: number; // 10% of netRevenue
   netProfit: number; // netRevenue minus COMMISSION — SUM(partner_share), the wallet's own figure
   revenueByMonth: { month: string; amount: number }[];
   bookingsByMonth: { month: string; count: number }[];

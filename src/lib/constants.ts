@@ -4,8 +4,8 @@ import type { BookingStatus, CancellationPolicyName } from "@/types";
  * Business constants — resolved decisions. Single source; never inline these.
  */
 
-/** Mamsa commission = 2% of booking total. Partner share = 98%. */
-export const COMMISSION_RATE = 0.02;
+/** Mamsa commission = 10% of the pre-VAT base. Partner share = 90%. */
+export const COMMISSION_RATE = 0.1;
 export const PARTNER_SHARE_RATE = 1 - COMMISSION_RATE;
 
 /** Saudi VAT. */

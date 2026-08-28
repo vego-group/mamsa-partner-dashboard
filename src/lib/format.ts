@@ -95,7 +95,7 @@ export interface PriceSplit {
   gross: number; // what the guest pays, VAT included
   netBase: number; // gross excluding VAT
   vat: number; // 15%, remitted to ZATCA
-  commission: number; // 2% of netBase, Mamsa
+  commission: number; // 10% of netBase, Mamsa
   partnerShare: number; // what the partner keeps
 }
 
@@ -104,7 +104,7 @@ export interface PriceSplit {
  * price — what the guest sees is what the guest pays — and everything else is
  * carved out of it.
  *
- * `partnerShare` is computed by SUBTRACTION, never `netBase * 0.98`. Two
+ * `partnerShare` is computed by SUBTRACTION, never `netBase * 0.90`. Two
  * independently rounded percentages of the same base do not have to add back
  * up to it; subtracting the rounded commission does, which is what keeps
  * `commission + partnerShare + vat === gross` true at every value.

@@ -57,8 +57,8 @@ describe("splitPrice", () => {
       gross: 500,
       netBase: 434.78,
       vat: 65.22,
-      commission: 8.7,
-      partnerShare: 426.08,
+      commission: 43.48,
+      partnerShare: 391.3,
     });
   });
 
@@ -90,8 +90,8 @@ describe("computeFinancials", () => {
     expect(f.total).toBe(1600);
     expect(f.netBase).toBe(1391.3);
     expect(f.vat).toBe(208.7);
-    expect(f.commission).toBe(27.83);
-    expect(f.partnerShare).toBe(1363.47);
+    expect(f.commission).toBe(139.13);
+    expect(f.partnerShare).toBe(1252.17);
   });
 
   it("still exposes its original keys", () => {
