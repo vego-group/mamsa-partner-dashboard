@@ -7,8 +7,10 @@ import { useLocale } from "@/stores/locale-store";
 import { MoneyText, DateText } from "@/components/shared/typed-text";
 import { EmptyState } from "@/components/shared/states";
 import { BOOKING_PARAM } from "@/lib/notifications";
+import { useComplaints } from "@/features/complaints/use-complaints";
+import { complaintHrefForLedgerRow } from "@/features/complaints/lib/link-ledger";
 import { cn } from "@/lib/cn";
-import type { PartnerLedgerEntry, PartnerLedgerEntryType } from "@/types";
+import type { PartnerComplaintRow, PartnerLedgerEntry, PartnerLedgerEntryType } from "@/types";
 import type { Dict } from "@/lib/i18n";
 import { Loader2 } from "lucide-react";
 
@@ -21,6 +23,9 @@ export function LedgerTable({ initial }: { initial: PartnerLedgerEntry[] }) {
   // A short first page means there is nothing behind it — don't offer more.
   const [exhausted, setExhausted] = useState(initial.length < PAGE);
   const [loading, setLoading] = useState(false);
+  // Only to turn a `refund_reversal` row into a link to its complaint. If this
+  // fails the rows simply stay plain text — it never blocks the ledger.
+  const complaints = useComplaints();
 
   async function loadMore() {
     const last = rows[rows.length - 1];
@@ -52,7 +57,7 @@ export function LedgerTable({ initial }: { initial: PartnerLedgerEntry[] }) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <LedgerRow key={row.id} row={row} />
+              <LedgerRow key={row.id} row={row} complaints={complaints.data} />
             ))}
           </tbody>
         </table>
@@ -74,9 +79,12 @@ export function LedgerTable({ initial }: { initial: PartnerLedgerEntry[] }) {
   );
 }
 
-function LedgerRow({ row }: { row: PartnerLedgerEntry }) {
+function LedgerRow({ row, complaints }: { row: PartnerLedgerEntry; complaints?: PartnerComplaintRow[] }) {
   const { t } = useLocale();
   const credit = row.amount >= 0;
+  // Matched by booking code, never by `refId` — that is a refund id, not a
+  // complaint id. No match → plain text, no guessing, no extra request.
+  const complaintHref = complaintHrefForLedgerRow(row, complaints);
 
   return (
     <tr className="border-b border-line/60 last:border-0">
@@ -89,7 +97,11 @@ function LedgerRow({ row }: { row: PartnerLedgerEntry }) {
         </span>
       </td>
       <td className="py-3 text-ink">
-        {row.refType === "booking" ? (
+        {complaintHref ? (
+          <Link href={complaintHref} className="hover:text-brand hover:underline">
+            {row.description}
+          </Link>
+        ) : row.refType === "booking" ? (
           <Link href={`/bookings?${BOOKING_PARAM}=${row.refId}`} className="hover:text-brand hover:underline">
             {row.description}
           </Link>

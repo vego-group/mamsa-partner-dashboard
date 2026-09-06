@@ -281,7 +281,13 @@ export interface PartnerLedgerEntry {
   type: PartnerLedgerEntryType;
   amount: number;
   balanceAfter: number;
-  refType: "booking" | "payout" | "manual";
+  /**
+   * `refund` is what a complaint deduction (`refund_reversal`) points at. Its
+   * `refId` is a `refunds.id`, NOT a complaint id — never build a
+   * `/complaints/{refId}` link from it. The complaint is found by `refCode`
+   * (the booking code) instead; see features/complaints/lib/link-ledger.
+   */
+  refType: "booking" | "payout" | "manual" | "refund";
   refId: string;
   refCode: string;
   description: string;
@@ -327,6 +333,62 @@ export interface PartnerPayoutDetail extends PartnerPayout {
     commission: number;
     partnerShare: number;
   }>;
+}
+
+/* ---------------- Complaints ---------------- */
+
+/**
+ * Guest complaint lifecycle, as the PARTNER sees it. The partner never acts on
+ * a complaint — Mamsa mediates — so this surface is read-only end to end.
+ *
+ * `approved` is NOT "deducted": it means Mamsa decided an amount, and the
+ * gateway settlement is still pending (can take an hour or more, can fail).
+ * Only `resolved_refunded` means money left the wallet.
+ */
+export type PartnerComplaintStatus =
+  | "submitted"
+  | "under_review"
+  | "approved"
+  | "resolved_refunded"
+  | "resolved_rejected";
+
+/** `GET /me/complaints` → `{ items }`. Whole list, no pagination today. */
+export interface PartnerComplaintRow {
+  id: number;
+  status: PartnerComplaintStatus;
+  bookingCode: string | null;
+  unitName: string | null;
+  createdAt: string | null; // ISO
+}
+
+/**
+ * A signed attachment URL. Expires ~15 minutes after the detail was fetched —
+ * never park these in long-lived state; refetch the detail when they stop
+ * loading.
+ */
+export interface PartnerComplaintImage {
+  url: string;
+  mime: string;
+}
+
+/**
+ * `GET /me/complaints/{id}`. Deliberately carries no internal note, no guest
+ * phone and no guest-facing message — none of those are for the partner.
+ */
+export interface PartnerComplaintDetail extends PartnerComplaintRow {
+  /** The guest's own text, verbatim. */
+  description: string;
+  images: PartnerComplaintImage[];
+  /**
+   * The PARTNER'S share of the refund, in HALALAS — not what the guest got
+   * back. VAT goes back to ZATCA and the commission back to Mamsa; the partner
+   * bears neither, and the commission rate was frozen on the booking, so this
+   * can only come from the API. Never derive it from another figure.
+   *
+   * `null` until the deduction actually lands (`resolved_refunded`) — including
+   * the whole time the status is `approved`. Null means: show no amount.
+   */
+  deductedHalalas: number | null;
 }
 
 export interface CalendarDay {

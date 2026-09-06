@@ -18,6 +18,7 @@ import {
   Bell,
   User,
   Wallet,
+  MessageSquareWarning,
   LogOut,
 } from "lucide-react";
 
@@ -29,6 +30,8 @@ const items = [
   { href: "/reports", key: "reports", icon: BarChart3 },
   // /wallet/payouts is reached from inside the wallet — not a second nav item.
   { href: "/wallet", key: "wallet", icon: Wallet },
+  // Read-only: the partner sees complaints and their effect on the balance, never acts on them.
+  { href: "/complaints", key: "complaints", icon: MessageSquareWarning },
   { href: "/notifications", key: "notifications", icon: Bell },
   { href: "/account", key: "account", icon: User },
 ] as const;

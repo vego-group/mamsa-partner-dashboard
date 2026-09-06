@@ -15,6 +15,8 @@ import type {
   PartnerPayout,
   PartnerPayoutDetail,
   PayoutStatus,
+  PartnerComplaintRow,
+  PartnerComplaintDetail,
   UnitCreateInput,
   PresignedUpload,
 } from "@/types";
@@ -783,6 +785,13 @@ export function readMockPayout(id: string): PartnerPayoutDetail | null {
 }
 
 /**
+ * What the one refunded complaint cost the partner. The ledger row and the
+ * complaint (below) share it so the two cannot disagree. Declared ahead of
+ * `buildLedger()` because the ledger is built at module load.
+ */
+const COMPLAINT_DEDUCTION_SAR = 250;
+
+/**
  * The ledger is BUILT, not written down: every row's `balanceAfter` is the
  * running total of the rows before it, so the summary below can be read off the
  * end of it rather than invented separately. That is what makes the two
@@ -804,16 +813,19 @@ function buildLedger(): PartnerLedgerEntry[] {
       createdAt: b.checkOut,
     });
 
-    // A guest refund clawed back after the fact.
+    // A complaint deduction — the partner's share of a guest refund, clawed
+    // back after the earning already landed. `refId` is the REFUND's id, so it
+    // must not be used as a complaint id; the complaint below (`cmp_1`) is
+    // reached by matching `refCode` to its `bookingCode`.
     if (i === 2) {
       rows.push({
         id: "led_r1",
         type: "refund_reversal",
-        amount: -250,
-        refType: "booking",
-        refId: b.id,
+        amount: -COMPLAINT_DEDUCTION_SAR,
+        refType: "refund",
+        refId: "rf_1",
         refCode: b.code,
-        description: `استرجاع مبلغ مسترد للضيف — ${b.code}`,
+        description: `خصم بسبب شكوى على الحجز ${b.code}`,
         createdAt: addDays(b.checkOut, 3),
       });
     }
@@ -871,6 +883,99 @@ export function readMockLedger(params: { limit?: number; before?: string } = {})
   const newestFirst = [...mockLedger].reverse();
   const start = before ? newestFirst.findIndex((r) => r.createdAt < before) : 0;
   return start === -1 ? [] : newestFirst.slice(start, start + limit);
+}
+
+/* ---------------- Complaints ---------------- */
+
+/**
+ * One complaint per booking, each in a different state so every branch of the
+ * partner screen is reachable in mock mode. Indexes are into the completed
+ * bookings in check-out order — the same order the ledger walks, which is how
+ * complaint 1 lands on the booking that carries the `refund_reversal` row.
+ */
+const complaintSeed: Array<{
+  id: number;
+  completedIndex: number;
+  status: PartnerComplaintDetail["status"];
+  description: string;
+  daysAfterCheckOut: number;
+  deductedHalalas: number | null;
+  images: PartnerComplaintDetail["images"];
+}> = [
+  {
+    id: 1,
+    completedIndex: 2,
+    status: "resolved_refunded",
+    description: "التكييف في غرفة النوم الرئيسية كان معطلاً طوال الإقامة، وأبلغنا المضيف في أول يوم ولم يُصلح. اضطررنا للنوم في الصالة.",
+    daysAfterCheckOut: 1,
+    // Halalas, and the PARTNER'S share only — the guest got more back than this.
+    deductedHalalas: COMPLAINT_DEDUCTION_SAR * 100,
+    images: [
+      { url: "https://images.unsplash.com/photo-1631889993959-41b4e9c6e3c5?w=800", mime: "image/jpeg" },
+      { url: "https://images.unsplash.com/photo-1585128792020-803d29415281?w=800", mime: "image/jpeg" },
+    ],
+  },
+  {
+    id: 2,
+    completedIndex: 3,
+    status: "approved",
+    description: "الوحدة لم تكن نظيفة عند الوصول: الأغطية مستعملة والحمام غير مغسول. أرفقت الصور.",
+    daysAfterCheckOut: 2,
+    // Approved but NOT settled yet — this is the state the screen must not put a number on.
+    deductedHalalas: null,
+    images: [{ url: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800", mime: "image/jpeg" }],
+  },
+  {
+    id: 3,
+    completedIndex: 1,
+    status: "under_review",
+    description: "عدد الأسرّة أقل مما هو مذكور في الإعلان — كنا ستة أشخاص ووجدنا أربعة أسرّة فقط.",
+    daysAfterCheckOut: 1,
+    deductedHalalas: null,
+    images: [],
+  },
+  {
+    id: 4,
+    completedIndex: 0,
+    status: "resolved_rejected",
+    description: "الموقع أبعد عن الكورنيش مما توقعنا.",
+    daysAfterCheckOut: 3,
+    deductedHalalas: null,
+    images: [],
+  },
+];
+
+function buildMockComplaints(): PartnerComplaintDetail[] {
+  const completed = completedBookingsChronologically();
+  return complaintSeed.flatMap((s) => {
+    const b = completed[s.completedIndex];
+    if (!b) return [];
+    return [
+      {
+        id: s.id,
+        status: s.status,
+        description: s.description,
+        bookingCode: b.code,
+        unitName: b.unitName,
+        createdAt: addDays(b.checkOut, s.daysAfterCheckOut),
+        images: s.images,
+        deductedHalalas: s.deductedHalalas,
+      },
+    ];
+  });
+}
+
+export const mockComplaints: PartnerComplaintDetail[] = buildMockComplaints();
+
+/** Newest first, list shape only — the detail fields stay behind `readMockComplaint`. */
+export function readMockComplaints(): PartnerComplaintRow[] {
+  return [...mockComplaints]
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+    .map(({ id, status, bookingCode, unitName, createdAt }) => ({ id, status, bookingCode, unitName, createdAt }));
+}
+
+export function readMockComplaint(id: string): PartnerComplaintDetail | null {
+  return mockComplaints.find((c) => String(c.id) === id) ?? null;
 }
 
 /**

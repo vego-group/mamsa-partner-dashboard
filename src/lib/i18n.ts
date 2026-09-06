@@ -18,6 +18,7 @@ export const dict: Record<Locale, Dict> = {
       bookings: "الحجوزات",
       reports: "التقارير",
       wallet: "المحفظة",
+      complaints: "الشكاوى",
       account: "الحساب",
       notifications: "الإشعارات",
       logout: "تسجيل خروج",
@@ -289,6 +290,44 @@ export const dict: Record<Locale, Dict> = {
       empty: "لا توجد حوالات بعد",
       emptyBody: "ستظهر هنا كل حوالة نُنفّذها لحسابك البنكي.",
       note: "ملاحظة",
+    },
+    complaints: {
+      title: "الشكاوى",
+      subtitle: "شكاوى الضيوف على وحداتك وأثرها على رصيدك. تراجعها مَمسَى وتقرّر فيها.",
+      emptyTitle: "لا توجد شكاوى على وحداتك",
+      emptyBody: "إذا قدّم ضيف شكوى بعد إقامته ستظهر هنا مع أثرها على رصيدك.",
+      colStatus: "الحالة",
+      colBooking: "كود الحجز",
+      colUnit: "الوحدة",
+      colDate: "التاريخ",
+      status_submitted: "مقدَّمة",
+      status_under_review: "قيد المراجعة",
+      status_approved: "معتمدة",
+      status_resolved_refunded: "تم الخصم",
+      status_resolved_rejected: "مرفوضة",
+      detailTitle: (ref: string) => `شكوى على الحجز ${ref}`,
+      detailTitleNoBooking: (id: number) => `شكوى #${id}`,
+      notFoundTitle: "الشكوى غير موجودة",
+      notFoundBody: "لا توجد شكوى بهذا الرقم على وحداتك.",
+      backToList: "كل الشكاوى",
+      sectionComplaint: "الشكوى",
+      description: "وصف الضيف",
+      submittedAt: "تاريخ التقديم",
+      booking: "كود الحجز",
+      unit: "الوحدة",
+      sectionAttachments: "المرفقات",
+      noAttachments: "لا توجد مرفقات مع هذه الشكوى.",
+      attachmentsExpired: "تعذّر عرض بعض الصور — غالبًا انتهت صلاحية روابطها. أعد تحميلها.",
+      refreshAttachments: "إعادة تحميل الصور",
+      attachmentAlt: (n: number) => `مرفق ${n}`,
+      sectionImpact: "الأثر المالي",
+      impactOpen: "الشكوى قيد النظر — لا أثر مالي حتى الآن.",
+      impactApproved: "تم اعتماد مبلغ — لم يُخصم بعد",
+      impactApprovedHint: "يظهر الخصم هنا وفي كشف حسابك بعد تسوية الاسترداد لدى بوابة الدفع، وقد يستغرق ذلك ساعة أو أكثر.",
+      impactRejected: "لم تُقبل الشكوى — لا خصم على رصيدك.",
+      impactDeducted: "خُصم من رصيدك",
+      impactDeductedHint: "هذا المبلغ هو حصتك من الاسترداد فقط. الضريبة تعود لهيئة الزكاة والعمولة تعود لمَمسَى ولا تُحتسب عليك.",
+      viewComplaint: "عرض الشكوى",
     },
     pricing: {
       priceInclVat: "السعر لليلة (شامل ضريبة القيمة المضافة)",
@@ -645,6 +684,7 @@ export const dict: Record<Locale, Dict> = {
       bookings: "Bookings",
       reports: "Reports",
       wallet: "Wallet",
+      complaints: "Complaints",
       account: "Account",
       notifications: "Notifications",
       logout: "Sign out",
@@ -914,6 +954,44 @@ export const dict: Record<Locale, Dict> = {
       empty: "No payouts yet",
       emptyBody: "Every transfer we execute to your bank account will appear here.",
       note: "Note",
+    },
+    complaints: {
+      title: "Complaints",
+      subtitle: "Guest complaints on your units and their effect on your balance. Mamsa reviews and decides them.",
+      emptyTitle: "No complaints on your units",
+      emptyBody: "If a guest files a complaint after their stay, it will appear here along with its effect on your balance.",
+      colStatus: "Status",
+      colBooking: "Booking",
+      colUnit: "Property",
+      colDate: "Date",
+      status_submitted: "Submitted",
+      status_under_review: "Under review",
+      status_approved: "Approved",
+      status_resolved_refunded: "Deducted",
+      status_resolved_rejected: "Rejected",
+      detailTitle: (ref: string) => `Complaint on booking ${ref}`,
+      detailTitleNoBooking: (id: number) => `Complaint #${id}`,
+      notFoundTitle: "Complaint not found",
+      notFoundBody: "There is no complaint with this number on your units.",
+      backToList: "All complaints",
+      sectionComplaint: "Complaint",
+      description: "Guest's description",
+      submittedAt: "Submitted on",
+      booking: "Booking",
+      unit: "Property",
+      sectionAttachments: "Attachments",
+      noAttachments: "No attachments were included with this complaint.",
+      attachmentsExpired: "Some images could not be shown — their links have most likely expired. Reload them.",
+      refreshAttachments: "Reload images",
+      attachmentAlt: (n: number) => `Attachment ${n}`,
+      sectionImpact: "Financial impact",
+      impactOpen: "The complaint is being reviewed — no financial effect so far.",
+      impactApproved: "An amount was approved — not deducted yet",
+      impactApprovedHint: "The deduction shows here and in your statement once the refund settles with the payment gateway, which can take an hour or more.",
+      impactRejected: "The complaint was not upheld — nothing is deducted from your balance.",
+      impactDeducted: "Deducted from your balance",
+      impactDeductedHint: "This is only your share of the refund. VAT goes back to ZATCA and the commission back to Mamsa — neither is charged to you.",
+      viewComplaint: "View complaint",
     },
     pricing: {
       priceInclVat: "Price per night (VAT inclusive)",
@@ -1260,7 +1338,16 @@ export type Dict = {
   brand: string;
   dashboardTag: string;
   nav: Record<
-    "overview" | "units" | "calendar" | "bookings" | "reports" | "wallet" | "account" | "notifications" | "logout",
+    | "overview"
+    | "units"
+    | "calendar"
+    | "bookings"
+    | "reports"
+    | "wallet"
+    | "complaints"
+    | "account"
+    | "notifications"
+    | "logout",
     string
   >;
   login: {
@@ -1528,6 +1615,44 @@ export type Dict = {
     empty: string;
     emptyBody: string;
     note: string;
+  };
+  complaints: {
+    title: string;
+    subtitle: string;
+    emptyTitle: string;
+    emptyBody: string;
+    colStatus: string;
+    colBooking: string;
+    colUnit: string;
+    colDate: string;
+    status_submitted: string;
+    status_under_review: string;
+    status_approved: string;
+    status_resolved_refunded: string;
+    status_resolved_rejected: string;
+    detailTitle: (ref: string) => string;
+    detailTitleNoBooking: (id: number) => string;
+    notFoundTitle: string;
+    notFoundBody: string;
+    backToList: string;
+    sectionComplaint: string;
+    description: string;
+    submittedAt: string;
+    booking: string;
+    unit: string;
+    sectionAttachments: string;
+    noAttachments: string;
+    attachmentsExpired: string;
+    refreshAttachments: string;
+    attachmentAlt: (n: number) => string;
+    sectionImpact: string;
+    impactOpen: string;
+    impactApproved: string;
+    impactApprovedHint: string;
+    impactRejected: string;
+    impactDeducted: string;
+    impactDeductedHint: string;
+    viewComplaint: string;
   };
   pricing: {
     priceInclVat: string;

@@ -12,6 +12,8 @@ const DASHBOARD_SOURCES = [
   "/calendar",
   "/bookings",
   "/reports",
+  "/complaints",
+  "/complaints/:path*",
   "/notifications",
   "/account",
 ];

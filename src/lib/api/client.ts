@@ -22,9 +22,12 @@ import type {
   PartnerLedgerEntry,
   PartnerPayout,
   PartnerPayoutDetail,
+  PartnerComplaintRow,
+  PartnerComplaintDetail,
   UnitCreateInput,
   UploadKind,
 } from "@/types";
+import { endpoints } from "@/lib/api/endpoints";
 import { isValidIban, normalizeIban } from "@/lib/iban";
 import {
   mockPartner,
@@ -49,6 +52,8 @@ import {
   readMockLedger,
   readMockPayouts,
   readMockPayout,
+  readMockComplaints,
+  readMockComplaint,
   saveMockPartner,
   mockPresignUpload,
   createMockUnit,
@@ -515,6 +520,37 @@ export const api = {
       return p;
     }
     return http(`/payouts/${id}`);
+  },
+
+  // ---- Complaints (read-only — Mamsa mediates, the partner only looks) ----
+  /**
+   * Whole list, unpaginated. The wallet's ledger relies on that: a
+   * `refund_reversal` row is linked to its complaint by matching booking
+   * codes across this list, so if pagination ever lands here that matching
+   * has to be revisited (features/complaints/lib/link-ledger).
+   */
+  async listComplaints(): Promise<PartnerComplaintRow[]> {
+    if (USE_MOCK) {
+      await delay();
+      return readMockComplaints();
+    }
+    const json = await http<{ items?: PartnerComplaintRow[] } | PartnerComplaintRow[]>(endpoints.complaints.list);
+    return Array.isArray(json) ? json : json.items ?? [];
+  },
+
+  /**
+   * Attachment URLs in the response are signed and die after ~15 minutes, so
+   * callers refetch rather than cache. 404 NOT_FOUND when the complaint isn't
+   * on one of this partner's units.
+   */
+  async getComplaint(id: string): Promise<PartnerComplaintDetail> {
+    if (USE_MOCK) {
+      await delay();
+      const c = readMockComplaint(id);
+      if (!c) throw new ApiError(404, "لم يُعثر على الشكوى.", "NOT_FOUND");
+      return c;
+    }
+    return http(endpoints.complaints.detail(id));
   },
 
   // ---- Calendar ---------------------------------------------------------

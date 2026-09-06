@@ -69,8 +69,12 @@ async function proxy(req: NextRequest, path: string[]) {
     }
   }
 
+  // 204/205/304 are body-less by spec; `new Response(body, { status: 204 })`
+  // throws "Invalid response status code", turning every upstream 204 into a
+  // local 500. Pass null for those.
   const responseBody = await res.arrayBuffer();
-  return new Response(responseBody, {
+  const outBody = [204, 205, 304].includes(res.status) ? null : responseBody;
+  return new Response(outBody, {
     status: res.status,
     headers: responseHeaders,
   });
