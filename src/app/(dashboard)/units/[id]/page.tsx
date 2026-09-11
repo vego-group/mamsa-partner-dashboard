@@ -92,10 +92,19 @@ export default function UnitDetailPage() {
           <h3 className="mb-3 font-semibold text-ink">الترخيص</h3>
           <dl className="space-y-2 text-sm">
             <Row label="رقم التصريح السياحي" value={u.tourismLicenseNumber || "—"} />
+            <Row
+              label={t.wiz.licenseType}
+              value={u.licenseType ? t.wiz.licenseTypeLabel[u.licenseType] : t.wiz.licenseTypeUnspecified}
+            />
+            {u.licenseType === "tourist_facility" && (
+              <Row label={t.wiz.licensedUnitsCount} value={u.licensedUnitsCount != null ? `${u.licensedUnitsCount}` : "—"} />
+            )}
             {/* A draft may have no pin yet — "null, null" is not a coordinate. */}
             <Row label="الإحداثيات" value={isValidLatLng(u) ? `${u.lat}, ${u.lng}` : "—"} />
             <Row label="العنوان" value={u.address} />
           </dl>
+          {/* Item 4 — plain text, not a status banner: "غير محدد" is the normal state for older units. */}
+          {!u.licenseType && <p className="mt-3 text-xs text-ink-muted">{t.wiz.licenseUnclassifiedNote}</p>}
         </Card>
 
         {/*

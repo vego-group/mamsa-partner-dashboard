@@ -143,10 +143,23 @@ export interface UnitCreateInput {
   address?: string;
   tourismLicenseNumber?: string;
   tourismLicenseFileId?: string;
+  /** Omitted = leave as is. Never sent as a way to "unclassify" a unit. */
+  licenseType?: LicenseType;
+  /**
+   * Required with `tourist_facility`; sent as `null` with
+   * `private_hospitality` so a stale count is cleared rather than rejected.
+   */
+  licensedUnitsCount?: number | null;
   /** Uploaded photo fileIds, in display order; `coverFileId` marks the cover. */
   photoFileIds?: string[];
   coverFileId?: string;
 }
+
+/**
+ * The tourism licence's kind. Only a `tourist_facility` licence may cover a
+ * building with more than one unit; `private_hospitality` covers exactly one.
+ */
+export type LicenseType = "tourist_facility" | "private_hospitality";
 
 export interface UnitPhoto {
   id: string;
@@ -191,6 +204,13 @@ export interface Unit {
   address: string;
   tourismLicenseNumber: string;
   tourismLicenseFileId?: string; // uploaded PDF ref
+  /**
+   * `null` on every unit created before the licence fields shipped — that is
+   * "nobody classified it yet", not an error, and the unit books normally.
+   */
+  licenseType?: LicenseType | null;
+  /** Set only with `tourist_facility`; the building's group may not outgrow it. */
+  licensedUnitsCount?: number | null;
   photos: UnitPhoto[];
   rejectionReason?: string; // present only when status=rejected
   publicUrl?: string; // present only when approved

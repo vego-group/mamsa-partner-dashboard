@@ -17,8 +17,14 @@ import {
 } from "@/lib/constants";
 import { cn } from "@/lib/cn";
 import type { Locale } from "@/lib/i18n";
-import type { Amenity, CancellationPolicyName, PropertyType, Unit, UnitCreateInput } from "@/types";
+import type { Amenity, CancellationPolicyName, LicenseType, PropertyType, Unit, UnitCreateInput } from "@/types";
 import { isInsideSaudi, isValidLatLng, type LatLng } from "@/features/units/lib/geo";
+import {
+  LICENSE_TYPES,
+  licenseErrorMessage,
+  licenseIssueMessage,
+  validateLicenseFields,
+} from "@/features/units/lib/license";
 import { FileUploadRow, type UploadedFile } from "@/features/units/components/file-upload";
 import { PriceBreakdown } from "@/features/units/components/price-breakdown";
 import { DescriptionEditor } from "@/features/units/components/description-editor";
@@ -116,6 +122,12 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
       ? { fileId: existing.tourismLicenseFileId, fileName: existing.tourismLicenseNumber || "tourism-license.pdf" }
       : null,
   );
+  // `null` from the API is "not classified yet" — the select simply opens on
+  // its blank option. Not a warning; the unit is live and books normally.
+  const [licenseType, setLicenseType] = useState<LicenseType | "">(existing?.licenseType ?? "");
+  const [licensedUnitsCount, setLicensedUnitsCount] = useState(
+    existing?.licensedUnitsCount != null ? String(existing.licensedUnitsCount) : "",
+  );
 
   // Step 2
   const [name, setName] = useState(existing?.name ?? "");
@@ -176,8 +188,20 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
   // upload can silently drop out of `photoFileIds` if the user submits early.
   const anyPhotoUploading = photos.some((p) => p.uploading);
 
+  // The two licence rules the form can see for itself. A request that breaks
+  // either is refused here, before it is sent — the backend would 422 it anyway.
+  const licenseIssue = validateLicenseFields({
+    licenseType: licenseType || null,
+    licensedUnitsCount: licensedUnitsCount.trim() === "" ? null : Number(licensedUnitsCount),
+  });
+
   const stepValid = [
-    Boolean(partner.data) && !(isCompany && companyDocs.loading) && licenseNo.trim().length > 0 && Boolean(tourismFile) && identityOk,
+    Boolean(partner.data) &&
+      !(isCompany && companyDocs.loading) &&
+      licenseNo.trim().length > 0 &&
+      Boolean(tourismFile) &&
+      identityOk &&
+      !licenseIssue,
     name.trim() && type && Number(price) > 0 && city && description.trim().length > 0 && isCancellationPolicyName(cancellationPolicy),
     Boolean(location) && isInsideSaudi(location ?? { lat: 0, lng: 0 }) && address.trim().length > 0,
     photos.some((p) => p.fileId) && !anyPhotoUploading,
@@ -209,6 +233,13 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
    */
   const locked = editing && existing?.status === "pending";
 
+  function onLicenseTypeChange(v: string) {
+    setLicenseType(v as LicenseType | "");
+    // The count only means something on a tourist facility licence; drop it
+    // the moment the type changes so a stale number is never sent with "private".
+    if (v !== "tourist_facility") setLicensedUnitsCount("");
+  }
+
   function toggleAmenity(a: Amenity) {
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
   }
@@ -234,6 +265,13 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
       address: address || undefined,
       tourismLicenseNumber: licenseNo || undefined,
       tourismLicenseFileId: tourismFile?.fileId,
+      licenseType: licenseType || undefined,
+      licensedUnitsCount:
+        licenseType === "tourist_facility"
+          ? Number(licensedUnitsCount) || undefined
+          : licenseType === "private_hospitality"
+            ? null
+            : undefined,
       photoFileIds: photos.filter((p) => p.fileId).map((p) => p.fileId as string),
       coverFileId: coverPhoto?.fileId ?? undefined,
     };
@@ -241,12 +279,18 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
 
   /** Creates the draft on first save, PATCHes it afterwards. Returns the unit, or null on failure. */
   async function persistDraft(): Promise<Unit | null> {
+    if (licenseIssue) {
+      // Save-draft is reachable from any step, so the step-1 gate is not enough.
+      setSubmitError(licenseIssueMessage(licenseIssue, w));
+      setStep(0);
+      return null;
+    }
     try {
       const unit = draftId ? await api.updateUnit(draftId, buildInput()) : await api.createUnit(buildInput());
       if (!draftId) setDraftId(unit.id);
       return unit;
     } catch (e) {
-      setSubmitError(e instanceof ApiError ? e.message : w.submitError);
+      setSubmitError(e instanceof ApiError ? licenseErrorMessage(e, w) ?? e.message : w.submitError);
       return null;
     }
   }
@@ -291,7 +335,7 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
       }
       setDone(true);
     } catch (e) {
-      setSubmitError(e instanceof ApiError ? e.message : w.submitError);
+      setSubmitError(e instanceof ApiError ? licenseErrorMessage(e, w) ?? e.message : w.submitError);
     } finally {
       setSubmitting(false);
     }
@@ -431,6 +475,44 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                         onChange={setTourismFile}
                       />
                     </div>
+                    <div className="mt-4">
+                      <FieldLabel>{w.licenseType}</FieldLabel>
+                      <SelectInput
+                        value={licenseType}
+                        onChange={onLicenseTypeChange}
+                        placeholder={w.licenseTypeUnspecified}
+                        options={LICENSE_TYPES.map((v) => ({ value: v, label: w.licenseTypeLabel[v] }))}
+                      />
+                      {/*
+                        Item 4 — an existing unit nobody classified yet. Confirmed with the
+                        backend: the approval guard branches on group size and returns before
+                        reading the licence when the size is 1, so this unit edits and
+                        re-approves normally. Informational tone on purpose: no amber, no icon
+                        of alarm, nothing that reads as "fix this before saving".
+                      */}
+                      {editing && !licenseType && (
+                        <div className="mt-3 flex items-start gap-2 rounded-2xl bg-brand-soft/60 px-4 py-3 text-sm text-ink-muted">
+                          <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                          <span>{w.licenseUnclassifiedNote}</span>
+                        </div>
+                      )}
+                    </div>
+                    {licenseType === "tourist_facility" && (
+                      <div className="mt-4">
+                        <FieldLabel required>{w.licensedUnitsCount}</FieldLabel>
+                        <TextInput
+                          type="number"
+                          value={licensedUnitsCount}
+                          onChange={setLicensedUnitsCount}
+                          placeholder="8"
+                          dir="ltr"
+                        />
+                        <p className="mt-1.5 text-xs text-ink-faint">{w.licensedUnitsCountHint}</p>
+                      </div>
+                    )}
+                    {licenseIssue && (
+                      <p className="mt-2 text-sm text-status-rejected">{licenseIssueMessage(licenseIssue, w)}</p>
+                    )}
                   </Section>
 
                   {partner.data?.accountType === "individual" ? (
@@ -704,6 +786,10 @@ export function PropertyWizard({ existing }: { existing?: Unit }) {
                 <ReviewRow label={w.licenseNo} value={licenseNo || "—"} />
                 <ReviewRow label={w.accountType} value={partnerTypeLabel || "—"} />
                 <ReviewRow label={w.tourismLicense} value={tourismFile ? `${w.uploaded} ✓` : "—"} />
+                <ReviewRow label={w.licenseType} value={licenseType ? w.licenseTypeLabel[licenseType] : w.licenseTypeUnspecified} />
+                {licenseType === "tourist_facility" && (
+                  <ReviewRow label={w.licensedUnitsCount} value={licensedUnitsCount || "—"} />
+                )}
               </ReviewCard>
 
               <ReviewCard title={w.s2Title} onEdit={() => setStep(1)} editLabel={t.common.edit}>

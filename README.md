@@ -29,6 +29,10 @@ NEXT_PUBLIC_USE_MOCK=false
 NEXT_PUBLIC_API_BASE_URL=https://api.mamsaa.com
 ```
 
+The flag accepts exactly `true` or `false`; any other value (or leaving it unset)
+throws at startup so a typo can't silently keep the mock on. In `next dev` a
+"Mock data" badge stays on screen while the mock is answering.
+
 Auth tokens are expected in an httpOnly cookie (the client sends
 `credentials: "include"`); OTP codes are never logged or returned in prod.
 

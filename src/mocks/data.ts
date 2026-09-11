@@ -1078,6 +1078,8 @@ export function createMockUnit(input: UnitCreateInput): Unit {
     address: input.address ?? "",
     tourismLicenseNumber: input.tourismLicenseNumber ?? "",
     tourismLicenseFileId: input.tourismLicenseFileId,
+    licenseType: input.licenseType ?? null,
+    licensedUnitsCount: input.licensedUnitsCount ?? null,
     photos: (input.photoFileIds ?? []).map((fid, i) => ({
       id: fid,
       url: mockUnits[i % mockUnits.length]?.photos[0]?.url ?? "",

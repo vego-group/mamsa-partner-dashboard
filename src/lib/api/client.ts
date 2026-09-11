@@ -65,8 +65,10 @@ import {
   mockUnreadCount,
 } from "@/mocks/data";
 import { OTP } from "@/lib/constants";
+import { IS_MOCK } from "@/lib/env";
 
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
+// Parsed strictly in env.ts — anything but "true"/"false" refuses to boot.
+const USE_MOCK = IS_MOCK;
 const USE_PROXY = process.env.NODE_ENV === "development";
 const BASE = USE_PROXY ? "/api/proxy" : process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -151,19 +153,47 @@ async function httpList<T>(path: string, init?: RequestInit): Promise<T[]> {
   return Array.isArray(json) ? json : json.data;
 }
 
+/**
+ * Two envelopes are live: the nested `{ error: { code, message, fields } }`
+ * and the flat `{ success, message, code, meta }` the newer 422 rejections
+ * use. Both are read here so callers branch on `code` and never on the shape.
+ */
 async function toApiError(res: Response): Promise<ApiError> {
   let code = `HTTP_${res.status}`;
   let message = res.statusText;
   let fields: Record<string, string> | undefined;
+  let meta: Record<string, unknown> | undefined;
   try {
-    const j = (await res.json()) as { error?: { code?: string; message?: string; fields?: Record<string, string> } };
-    code = j.error?.code ?? code;
-    message = j.error?.message ?? message; // Arabic, user-facing
-    fields = j.error?.fields;
+    const j = (await res.json()) as {
+      error?: { code?: string; message?: string; fields?: Record<string, string>; meta?: Record<string, unknown> };
+      code?: string;
+      message?: string;
+      fields?: Record<string, string>;
+      meta?: Record<string, unknown>;
+    };
+    const env = j.error ?? j;
+    code = env.code ?? code;
+    message = env.message ?? message; // Arabic, user-facing
+    fields = env.fields;
+    meta = env.meta ?? j.meta;
   } catch {
     /* non-JSON body — keep statusText */
   }
-  return new ApiError(res.status, message, code, fields);
+  return new ApiError(res.status, message, code, fields, meta);
+}
+
+/**
+ * Mock-mode stand-in for the backend's licence rules, so the two rejections
+ * the form can provoke on its own are reachable without staging. The other
+ * four codes need a building with several units and are not modelled here.
+ */
+function assertMockLicenseRules(input: UnitCreateInput): void {
+  if (input.licenseType === "tourist_facility" && input.licensedUnitsCount == null) {
+    throw new ApiError(422, "عدد الوحدات المرخّصة مطلوب.", "LICENSED_UNITS_COUNT_REQUIRED");
+  }
+  if (input.licenseType === "private_hospitality" && (input.licensedUnitsCount ?? 0) > 1) {
+    throw new ApiError(422, "لا ينطبق عدد الوحدات على هذا التصريح.", "LICENSED_UNITS_COUNT_NOT_APPLICABLE");
+  }
 }
 
 export class ApiError extends Error {
@@ -172,6 +202,8 @@ export class ApiError extends Error {
     message: string,
     public code: string = "UNKNOWN",
     public fields?: Record<string, string>,
+    /** Extra facts about the rejection, e.g. `licensed_units_count` on a quantity error. */
+    public meta?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -364,6 +396,7 @@ export const api = {
   async createUnit(input: UnitCreateInput): Promise<Unit> {
     if (USE_MOCK) {
       await delay();
+      assertMockLicenseRules(input);
       return createMockUnit(input);
     }
     return http("/units", { method: "POST", body: JSON.stringify(input) });
@@ -372,6 +405,7 @@ export const api = {
   async updateUnit(id: string, input: UnitCreateInput): Promise<Unit> {
     if (USE_MOCK) {
       await delay();
+      assertMockLicenseRules(input);
       return updateMockUnit(id, input);
     }
     return http(`/units/${id}`, { method: "PATCH", body: JSON.stringify(input) });
@@ -741,4 +775,4 @@ export const api = {
   },
 };
 
-export const IS_MOCK = USE_MOCK;
+export { IS_MOCK } from "@/lib/env";

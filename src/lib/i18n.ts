@@ -5,6 +5,14 @@
 
 export type Locale = "ar" | "en";
 
+/** "8 وحدات", "وحدتين", "وحدة واحدة" — Arabic counts a unit differently by size. */
+function unitsAr(n: number): string {
+  if (n === 1) return "وحدة واحدة";
+  if (n === 2) return "وحدتين";
+  if (n >= 3 && n <= 10) return `${n} وحدات`;
+  return `${n} وحدة`;
+}
+
 export const dict: Record<Locale, Dict> = {
   ar: {
     dir: "rtl",
@@ -317,7 +325,10 @@ export const dict: Record<Locale, Dict> = {
       unit: "الوحدة",
       sectionAttachments: "المرفقات",
       noAttachments: "لا توجد مرفقات مع هذه الشكوى.",
-      attachmentsExpired: "تعذّر عرض بعض الصور — غالبًا انتهت صلاحية روابطها. أعد تحميلها.",
+      attachmentsExpired: "انتهت صلاحية روابط الصور — أعد تحميلها.",
+      attachmentExpired: "انتهى الرابط — حدّث الصفحة",
+      attachmentMissing: "المرفق غير متاح",
+      attachmentBroken: "تعذّر عرض هذا المرفق",
       refreshAttachments: "إعادة تحميل الصور",
       attachmentAlt: (n: number) => `مرفق ${n}`,
       sectionImpact: "الأثر المالي",
@@ -499,6 +510,27 @@ export const dict: Record<Locale, Dict> = {
       tourismLicense: "التصريح السياحي",
       tourismLicenseNo: "رقم التصريح السياحي",
       uploadTourismLicense: "رفع التصريح السياحي (PDF)",
+      licenseType: "نوع التصريح",
+      licenseTypeUnspecified: "غير محدد",
+      licenseTypeLabel: {
+        tourist_facility: "مرفق ضيافة سياحي",
+        private_hospitality: "مرفق ضيافة خاص",
+      },
+      licensedUnitsCount: "عدد الوحدات المرخّصة",
+      licensedUnitsCountHint: "كما هو مكتوب في ملف التصريح. لا يمكن أن يضم المبنى وحدات أكثر من هذا العدد.",
+      // Licence rejections — one message per backend code, never the code itself.
+      licenseErrCountRequired: "اخترت تصريح مرفق سياحي دون تحديد عدد الوحدات المرخّصة.",
+      licenseErrCountNotApplicable: "تصريح المرفق الخاص يغطي وحدة واحدة فقط ولا يقبل عددًا أكبر.",
+      licenseErrMultiUnitRequiresFacility: "إضافة وحدات أخرى تحت نفس المبنى تتطلب تصريح مرفق ضيافة سياحي.",
+      licenseErrQuantityExceeds: (n: number | null) =>
+        n === null
+          ? "العدد المطلوب أكبر مما يغطيه تصريحك."
+          : `تصريحك يغطي ${unitsAr(n)} فقط — العدد المطلوب أكبر من ذلك.`,
+      licenseErrDowngradeBlocked:
+        "لا يمكن التحويل إلى تصريح مرفق خاص ما دام المبنى يضم أكثر من وحدة. قلّل عدد الوحدات في المبنى أولًا ثم غيّر التصريح.",
+      licenseErrMultiUnitDisabled: "إضافة أكثر من وحدة تحت نفس المبنى غير متاحة حاليًا.",
+      // Informational, never a warning: an unclassified unit edits, books and re-approves normally.
+      licenseUnclassifiedNote: "لم يتم تحديد نوع التصريح لهذه الوحدة. تحديده مطلوب قبل إضافة وحدات أخرى تحت نفس المبنى.",
       pdfMax10: "ملف PDF · بحد أقصى 10 ميجابايت",
       identityVerification: "التحقق من الهوية",
       nationalId: "رقم الهوية الوطنية / الإقامة",
@@ -981,7 +1013,10 @@ export const dict: Record<Locale, Dict> = {
       unit: "Property",
       sectionAttachments: "Attachments",
       noAttachments: "No attachments were included with this complaint.",
-      attachmentsExpired: "Some images could not be shown — their links have most likely expired. Reload them.",
+      attachmentsExpired: "The image links have expired — reload them.",
+      attachmentExpired: "Link expired — refresh the page",
+      attachmentMissing: "Attachment unavailable",
+      attachmentBroken: "This attachment could not be shown",
       refreshAttachments: "Reload images",
       attachmentAlt: (n: number) => `Attachment ${n}`,
       sectionImpact: "Financial impact",
@@ -1163,6 +1198,27 @@ export const dict: Record<Locale, Dict> = {
       tourismLicense: "Tourism License",
       tourismLicenseNo: "Tourism License Number",
       uploadTourismLicense: "Upload Tourism License (PDF)",
+      licenseType: "Licence type",
+      licenseTypeUnspecified: "Not specified",
+      licenseTypeLabel: {
+        tourist_facility: "Tourist hospitality facility",
+        private_hospitality: "Private hospitality facility",
+      },
+      licensedUnitsCount: "Licensed units",
+      licensedUnitsCountHint: "As written on the licence document. The building cannot hold more units than this.",
+      // Licence rejections — one message per backend code, never the code itself.
+      licenseErrCountRequired: "You chose a tourist facility licence without entering the number of licensed units.",
+      licenseErrCountNotApplicable: "A private hospitality licence covers one unit only and cannot take a larger count.",
+      licenseErrMultiUnitRequiresFacility: "Adding more units under the same building requires a tourist facility licence.",
+      licenseErrQuantityExceeds: (n: number | null) =>
+        n === null
+          ? "The requested number of units is more than your licence covers."
+          : `Your licence covers ${n} unit${n === 1 ? "" : "s"} — the requested number is higher.`,
+      licenseErrDowngradeBlocked:
+        "You cannot switch to a private licence while the building still holds more than one unit. Reduce the building's units first, then change the licence.",
+      licenseErrMultiUnitDisabled: "Adding more than one unit under the same building is not available right now.",
+      // Informational, never a warning: an unclassified unit edits, books and re-approves normally.
+      licenseUnclassifiedNote: "The licence type for this unit has not been set. It is needed before adding more units under the same building.",
       pdfMax10: "PDF file · max 10 MB",
       identityVerification: "Identity Verification",
       nationalId: "National ID / Iqama Number",
@@ -1643,6 +1699,9 @@ export type Dict = {
     sectionAttachments: string;
     noAttachments: string;
     attachmentsExpired: string;
+    attachmentExpired: string;
+    attachmentMissing: string;
+    attachmentBroken: string;
     refreshAttachments: string;
     attachmentAlt: (n: number) => string;
     sectionImpact: string;
@@ -1816,6 +1875,18 @@ export type Dict = {
     tourismLicense: string;
     tourismLicenseNo: string;
     uploadTourismLicense: string;
+    licenseType: string;
+    licenseTypeUnspecified: string;
+    licenseTypeLabel: Record<"tourist_facility" | "private_hospitality", string>;
+    licensedUnitsCount: string;
+    licensedUnitsCountHint: string;
+    licenseErrCountRequired: string;
+    licenseErrCountNotApplicable: string;
+    licenseErrMultiUnitRequiresFacility: string;
+    licenseErrQuantityExceeds: (n: number | null) => string;
+    licenseErrDowngradeBlocked: string;
+    licenseErrMultiUnitDisabled: string;
+    licenseUnclassifiedNote: string;
     pdfMax10: string;
     identityVerification: string;
     nationalId: string;

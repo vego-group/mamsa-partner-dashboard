@@ -8,16 +8,14 @@ import { useLocale } from "@/stores/locale-store";
 import { useComplaint } from "@/features/complaints/use-complaints";
 import { ComplaintStatusBadge } from "@/features/complaints/components/complaint-status-badge";
 import { ComplaintImpactCard } from "@/features/complaints/components/complaint-impact-card";
+import { AttachmentGrid } from "@/features/complaints/components/attachment-grid";
 import { Card, Button } from "@/components/ui";
 import { DateText } from "@/components/shared/typed-text";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/shared/states";
-import type { PartnerComplaintImage } from "@/types";
 import { ArrowLeft, ImageOff, RefreshCw, SearchX } from "lucide-react";
 
 /** Attachment URLs are signed for ~15 minutes. Refetch a little before that when the tab comes back. */
 const ATTACHMENT_TTL_MS = 14 * 60_000;
-/** An image that fails this soon after the fetch did not expire — don't loop on it. */
-const EXPIRY_GRACE_MS = 60_000;
 
 export default function ComplaintDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,41 +24,47 @@ export default function ComplaintDetailPage() {
   const { data, loading, error, reload } = useComplaint(id);
 
   // When the current response landed — the signed URLs in it age from here.
-  // A ref, not state: nothing renders off it, it only decides whether a
-  // broken image means "expired, refetch" or "just broken, say so".
-  const fetchedAt = useRef(0);
+  // State, not a ref: the grid classifies image failures against it.
+  const [fetchedAt, setFetchedAt] = useState(0);
   const autoReloaded = useRef(false);
-  const [imagesBroken, setImagesBroken] = useState(false);
+  const [linksExpired, setLinksExpired] = useState(false);
 
   useEffect(() => {
     if (!data) return;
-    fetchedAt.current = Date.now();
-    autoReloaded.current = false;
-    setImagesBroken(false);
+    setFetchedAt(Date.now());
+    setLinksExpired(false);
   }, [data]);
 
   // Left open past the signature window, then brought back — refetch rather
   // than let the partner meet a grid of broken images.
   useEffect(() => {
     function onVisible() {
-      if (document.visibilityState !== "visible" || !fetchedAt.current) return;
-      if (Date.now() - fetchedAt.current > ATTACHMENT_TTL_MS) reload();
+      if (document.visibilityState !== "visible" || !fetchedAt) return;
+      if (Date.now() - fetchedAt > ATTACHMENT_TTL_MS) {
+        autoReloaded.current = false;
+        reload();
+      }
     }
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [reload]);
+  }, [fetchedAt, reload]);
 
-  function onImageError() {
-    if (imagesBroken) return;
-    const stale = Date.now() - fetchedAt.current > EXPIRY_GRACE_MS;
-    if (stale && !autoReloaded.current) {
-      // Not an error — the links aged out. One silent refetch, then fall
-      // back to telling the partner if it still fails.
+  function manualReload() {
+    // A deliberate reload earns the next expiry one more silent retry.
+    autoReloaded.current = false;
+    reload();
+  }
+
+  function onLinksExpired() {
+    // Not an error — the links aged out. One silent refetch of the complaint
+    // (which issues fresh signed URLs), then tell the partner if it still
+    // fails. The flag survives the refetch, so this can never loop.
+    if (!autoReloaded.current) {
       autoReloaded.current = true;
       reload();
       return;
     }
-    setImagesBroken(true);
+    setLinksExpired(true);
   }
 
   if (loading) return <LoadingSkeleton rows={4} />;
@@ -120,7 +124,7 @@ export default function ComplaintDetailPage() {
             <h3 className="font-semibold text-ink">{c.sectionAttachments}</h3>
             {data.images.length > 0 && (
               <button
-                onClick={reload}
+                onClick={manualReload}
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition hover:text-brand"
               >
                 <RefreshCw className="h-4 w-4" />
@@ -129,7 +133,7 @@ export default function ComplaintDetailPage() {
             )}
           </div>
 
-          {imagesBroken && (
+          {linksExpired && (
             <div className="mb-3 flex items-center gap-2 rounded-2xl bg-cream/70 px-4 py-2.5 text-sm text-ink-muted">
               <ImageOff className="h-4 w-4 shrink-0" />
               {c.attachmentsExpired}
@@ -139,43 +143,10 @@ export default function ComplaintDetailPage() {
           {data.images.length === 0 ? (
             <p className="text-sm text-ink-muted">{c.noAttachments}</p>
           ) : (
-            <AttachmentGrid images={data.images} alt={c.attachmentAlt} onError={onImageError} />
+            <AttachmentGrid images={data.images} fetchedAt={fetchedAt} onExpired={onLinksExpired} onReload={manualReload} />
           )}
         </Card>
       </div>
-    </div>
-  );
-}
-
-function AttachmentGrid({
-  images,
-  alt,
-  onError,
-}: {
-  images: PartnerComplaintImage[];
-  alt: (n: number) => string;
-  onError: () => void;
-}) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {images.map((img, i) => (
-        <a
-          key={`${i}-${img.url}`}
-          href={img.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="relative block aspect-[4/3] overflow-hidden rounded-card bg-line"
-        >
-          {/*
-            Plain <img>, not next/image: these are short-lived signed URLs on
-            whatever host the storage signs for, which is not something to pin
-            in `images.remotePatterns` — and there is nothing to optimise on a
-            link that dies in fifteen minutes.
-          */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={img.url} alt={alt(i + 1)} loading="lazy" onError={onError} className="h-full w-full object-cover" />
-        </a>
-      ))}
     </div>
   );
 }
