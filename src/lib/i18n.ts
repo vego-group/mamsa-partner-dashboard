@@ -733,6 +733,21 @@ export const dict: Record<Locale, Dict> = {
       shrinkBlocked: "لتقليل عدد الشقق تواصل مع الدعم.",
       exceedsLicense: (licensed: number) => `تصريحك يغطي ${unitsAr(licensed)} فقط.`,
       invalidCount: "أدخل عددًا صحيحًا أكبر من صفر.",
+      // Seen on staging 2026-09-11: expansion submits the copies for review, and the
+      // submit validation answers 400 VALIDATION naming the SOURCE unit's missing
+      // documents. That is about the unit, not the number typed.
+      sourceIncomplete: (fields: string[]) =>
+        fields.length
+          ? `لا يمكن إرسال الشقق الجديدة للمراجعة لأن بيانات هذه الوحدة غير مكتملة: ${fields.join("، ")}. أكملها من «تعديل» ثم أعد المحاولة.`
+          : "لا يمكن إرسال الشقق الجديدة للمراجعة لأن بيانات هذه الوحدة غير مكتملة. أكملها من «تعديل» ثم أعد المحاولة.",
+      fieldLabel: {
+        tourismLicenseNumber: "رقم التصريح السياحي",
+        tourismLicenseFileId: "ملف التصريح السياحي",
+        ownershipDocFileId: "مستند الملكية",
+        photos: "الصور",
+        description: "الوصف",
+        pricePerNight: "السعر",
+      } as Record<string, string>,
       submit: "إضافة",
       submitting: "جارٍ الإضافة…",
       successAdded: (added: number, total: number) => `تمت إضافة ${apartmentsAr(added)}. مبناك الآن ${apartmentsAr(total)}.`,
@@ -1445,6 +1460,18 @@ export const dict: Record<Locale, Dict> = {
       shrinkBlocked: "To reduce the number of apartments, contact support.",
       exceedsLicense: (licensed: number) => `Your licence covers ${licensed} unit${licensed === 1 ? "" : "s"} only.`,
       invalidCount: "Enter a whole number above zero.",
+      sourceIncomplete: (fields: string[]) =>
+        fields.length
+          ? `The new apartments cannot be submitted for review because this unit is missing: ${fields.join(", ")}. Complete them under Edit, then try again.`
+          : "The new apartments cannot be submitted for review because this unit's details are incomplete. Complete them under Edit, then try again.",
+      fieldLabel: {
+        tourismLicenseNumber: "tourism licence number",
+        tourismLicenseFileId: "tourism licence file",
+        ownershipDocFileId: "ownership document",
+        photos: "photos",
+        description: "description",
+        pricePerNight: "price",
+      } as Record<string, string>,
       submit: "Add",
       submitting: "Adding…",
       successAdded: (added: number, total: number) => `Added ${apartmentsEn(added)}. Your building now has ${apartmentsEn(total)}.`,
@@ -2097,6 +2124,9 @@ export type Dict = {
     shrinkBlocked: string;
     exceedsLicense: (licensed: number) => string;
     invalidCount: string;
+    sourceIncomplete: (fields: string[]) => string;
+    /** Known keys the submit validation names; an unknown key is left out rather than shown raw. */
+    fieldLabel: Record<string, string>;
     submit: string;
     submitting: string;
     successAdded: (added: number, total: number) => string;

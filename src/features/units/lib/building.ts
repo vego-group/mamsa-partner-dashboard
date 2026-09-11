@@ -72,17 +72,28 @@ export function expansionPlanLine(plan: ExpansionPlan, current: number, target: 
 
 /**
  * Where a rejection lands and what it says. Two envelopes come back from this
- * route and they mean different things: a 400 `VALIDATION` is about the body
- * (so it belongs on the field), a 422 licence code is about the partner's
- * permit (so it belongs on the form). Branches on `code` only — the server's
+ * route and they mean different things: a 400 `VALIDATION` is about the body,
+ * a 422 licence code is about the partner's permit (so it belongs on the
+ * form). Branches on `code` and on the `fields` keys only — the server's
  * Arabic `message` is never surfaced, and neither is the code itself.
+ *
+ * A 400 has two readings. `fields.count` (or no `fields` at all) is the number
+ * typed and belongs on the field. Any other key is the submit validation
+ * refusing the copied apartments because the SOURCE unit is missing something
+ * — seen on staging with `tourismLicenseNumber` and `tourismLicenseFileId` —
+ * and that belongs on the form, naming what to complete on the unit.
  */
 export type ExpansionError = { scope: "field" | "form"; text: string };
 
 export function expansionErrorMessage(e: unknown, t: Dict): ExpansionError {
   const b = t.building;
   if (e instanceof ApiError) {
-    if (e.code === "VALIDATION") return { scope: "field", text: b.invalidCount };
+    if (e.code === "VALIDATION") {
+      const keys = Object.keys(e.fields ?? {});
+      if (keys.length === 0 || keys.includes("count")) return { scope: "field", text: b.invalidCount };
+      const labels = keys.map((k) => b.fieldLabel[k]).filter((l): l is string => !!l);
+      return { scope: "form", text: b.sourceIncomplete(labels) };
+    }
     const licence = licenseErrorMessage(e, t.wiz);
     if (licence) return { scope: "form", text: licence };
     if (e.code === "NOT_FOUND" || e.status === 404) return { scope: "form", text: b.errNotFound };

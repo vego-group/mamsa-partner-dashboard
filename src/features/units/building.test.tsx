@@ -89,10 +89,33 @@ describe("expansionErrorMessage", () => {
   const err = (status: number, code: string, meta?: Record<string, unknown>) =>
     new ApiError(status, SERVER_MSG, code, undefined, meta);
 
-  it("routes a 400 VALIDATION to the field, not to a licence message", () => {
+  it("routes a 400 VALIDATION on the count to the field, not to a licence message", () => {
     const e = expansionErrorMessage(new ApiError(400, SERVER_MSG, "VALIDATION", { count: "مطلوب" }), t);
     expect(e).toEqual({ scope: "field", text: b.invalidCount });
     expect(e.text).not.toBe(t.wiz.licenseErrMultiUnitRequiresFacility);
+    // No fields at all is still about the body.
+    expect(expansionErrorMessage(new ApiError(400, SERVER_MSG, "VALIDATION"), t).scope).toBe("field");
+  });
+
+  // Captured from staging on 2026-09-11: the submit validation refusing the copied
+  // apartments because the source unit carries no licence number or file.
+  it("routes a 400 VALIDATION about the source unit's documents to the form, naming the fields", () => {
+    const e = expansionErrorMessage(
+      new ApiError(400, "بيانات غير مكتملة", "VALIDATION", {
+        tourismLicenseNumber: "رقم رخصة السياحة مطلوب",
+        tourismLicenseFileId: "ملف الرخصة مطلوب",
+      }),
+      t,
+    );
+    expect(e.scope).toBe("form");
+    expect(e.text).toBe(b.sourceIncomplete(["رقم التصريح السياحي", "ملف التصريح السياحي"]));
+    expect(e.text).not.toContain("رقم رخصة السياحة مطلوب");
+    expect(e.text).not.toContain("tourismLicense");
+    // An unknown key is left out rather than shown raw.
+    const unknown = expansionErrorMessage(new ApiError(400, "x", "VALIDATION", { somethingNew: "x" }), t);
+    expect(unknown.scope).toBe("form");
+    expect(unknown.text).toBe(b.sourceIncomplete([]));
+    expect(unknown.text).not.toContain("somethingNew");
   });
 
   it("gives the three licence codes three distinct form messages", () => {
@@ -352,6 +375,19 @@ describe("the add-apartments dialog", () => {
     fireEvent.click(submit);
     const status = await screen.findByRole("status");
     expect(status.textContent).toBe("لم يطرأ تغيير — مبناك بالفعل 8 شقق.");
+  });
+
+  it("puts a source-unit 400 on the form with the missing documents named", async () => {
+    vi.spyOn(api, "expandBuilding").mockRejectedValueOnce(
+      new ApiError(400, "بيانات غير مكتملة", "VALIDATION", { tourismLicenseNumber: "x", tourismLicenseFileId: "x" }),
+    );
+    const { input, submit, line } = openDialog();
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.click(submit);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe(b.sourceIncomplete(["رقم التصريح السياحي", "ملف التصريح السياحي"]));
+    // The live line is untouched: the number typed was fine.
+    expect(line()).toBe("مبناك فيه 5 الآن. إدخال 8 يضيف 3.");
   });
 
   it("puts a 400 on the field and a 422 on the form", async () => {
