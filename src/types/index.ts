@@ -211,10 +211,28 @@ export interface Unit {
   licenseType?: LicenseType | null;
   /** Set only with `tourist_facility`; the building's group may not outgrow it. */
   licensedUnitsCount?: number | null;
+  /**
+   * Apartments in this unit's building. `1` for a standalone unit (and the
+   * assumed value when the field is absent); anything above that is a building
+   * the partner listed once, with each apartment a real row behind it.
+   */
+  groupSize?: number;
   photos: UnitPhoto[];
   rejectionReason?: string; // present only when status=rejected
   publicUrl?: string; // present only when approved
   updatedAt: string; // ISO
+}
+
+/**
+ * `POST /units/:id/apartments` — the two fields the dashboard reads from the
+ * response. `groupSize` is the state (how big the building is now), `added` is
+ * the confirmation (how many this call created). The envelope also carries
+ * `groupId`, `units` and an Arabic `message`; none of them is read, and the
+ * message is never shown — the app is bilingual and builds its own line.
+ */
+export interface BuildingExpansion {
+  groupSize: number;
+  added: number;
 }
 
 /** All figures in SAR. `total` is the GROSS the guest paid, VAT included. */

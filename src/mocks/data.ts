@@ -122,6 +122,11 @@ export const mockUnits: Unit[] = [
     address: "حي الشاطئ، جدة",
     tourismLicenseNumber: "TL-2025-88214",
     tourismLicenseFileId: "file_lic_u2",
+    // The same shape as the staging demo building: a tourist facility licensed
+    // for 8 with 5 apartments today, so 9 is a licence rejection and 8 adds 3.
+    licenseType: "tourist_facility",
+    licensedUnitsCount: 8,
+    groupSize: 5,
     photos: [photo("ph4", true), photo("ph5")],
     publicUrl: "https://mamsaa.com/units/JDH2402",
     updatedAt: "2026-07-08T12:00:00Z",
@@ -1115,6 +1120,33 @@ export function updateMockUnit(id: string, input: UnitCreateInput): Unit {
     updatedAt: new Date().toISOString(),
   });
   return u;
+}
+
+/**
+ * POST /units/:id/apartments — `count` is the building's total afterwards.
+ * Returns the full contract envelope (ids, units, an Arabic message) so mock
+ * mode exercises the client's reader the way staging does. A count at or
+ * below the current size adds nothing: the backend has not said whether it
+ * deletes, and the dialog never sends one, so the mock stays on the safe side.
+ */
+export function expandMockBuilding(id: string, count: number) {
+  const u = mockUnits.find((x) => x.id === id);
+  if (!u) throw new Error("UNIT_NOT_FOUND");
+  const current = u.groupSize ?? 1;
+  const added = Math.max(0, count - current);
+  u.groupSize = current + added;
+  u.updatedAt = new Date().toISOString();
+  return {
+    groupId: `grp_${u.id}`,
+    groupSize: u.groupSize,
+    added,
+    units: Array.from({ length: added }, (_, i) => ({
+      id: `${u.id}_apt_${current + i + 1}`,
+      apartmentNo: String(current + i + 1),
+      status: "approved" as const,
+    })),
+    message: `تمت إضافة ${added} وحدة إلى المبنى`,
+  };
 }
 
 /** POST /units/:id/submit — draft/rejected → pending, full validation server-side. */

@@ -8,6 +8,15 @@
  * path is spelled once and the client only assembles the request around it.
  */
 export const endpoints = {
+  units: {
+    /**
+     * `POST { count }` → `BuildingExpansion`. `count` is the building's TOTAL
+     * after the call, not an increment: 8 on a building of 5 adds 3, and 8
+     * again adds nothing. Rejections: 400 `VALIDATION` (bad body), 422 with a
+     * licence code, 404 when the unit is not this partner's.
+     */
+    apartments: (id: string) => `/units/${id}/apartments`,
+  },
   complaints: {
     /** `GET` → `{ items: PartnerComplaintRow[] }`. Whole list, no pagination. */
     list: "/me/complaints",

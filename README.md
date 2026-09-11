@@ -45,7 +45,7 @@ Auth tokens are expected in an httpOnly cookie (the client sends
 | D-2 Units | `/units` | Lifecycle filters (Draft/Pending/Approved/Rejected), actions by state. |
 | D-3 Add Unit | `/units/new` | 5-step stepper, Individual/Company variant, Saudi cities, ≥1 photo, 24–48h SLA success. |
 | D-4 Edit Unit | `/units/[id]/edit` | Draft free-edit · Approved confirm→pending · Rejected reason+resubmit. No status dropdown. |
-| D-5 Unit Details | `/units/[id]` | Gallery, data, license, rejected reason + resubmit, approved public link + calendar. |
+| D-5 Unit Details | `/units/[id]` | Gallery, data, license, building card (size, licensed share, "add apartments" — `count` is the total, not an increment), rejected reason + resubmit, approved public link + calendar. |
 | D-6 Calendar | `/calendar` | Unit selector, day states + source names, manual block modal, iCal import + export. |
 | D-7 Bookings | `/bookings` | Confirmed/Completed/Cancelled (no Pending). |
 | D-8 Booking Details | (modal) | 10% / 90% breakdown; two-step host-cancel; 100% guest refund; processing + cancellation details. |

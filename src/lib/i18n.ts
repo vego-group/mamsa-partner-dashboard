@@ -13,6 +13,18 @@ function unitsAr(n: number): string {
   return `${n} وحدة`;
 }
 
+/** Same rule for apartments: singular, dual, then the 3–10 plural and the 11+ singular-after-number. */
+function apartmentsAr(n: number): string {
+  if (n === 1) return "شقة واحدة";
+  if (n === 2) return "شقتين";
+  if (n >= 3 && n <= 10) return `${n} شقق`;
+  return `${n} شقة`;
+}
+
+function apartmentsEn(n: number): string {
+  return `${n} apartment${n === 1 ? "" : "s"}`;
+}
+
 export const dict: Record<Locale, Dict> = {
   ar: {
     dir: "rtl",
@@ -695,6 +707,38 @@ export const dict: Record<Locale, Dict> = {
       copied: "تم النسخ",
       required: "مطلوب",
       language: "EN",
+    },
+    // FE-7 — the building card and the "add apartments" dialog. The server's own
+    // Arabic `message` is never shown: the app is bilingual, so every line here has
+    // an English twin below.
+    building: {
+      title: "المبنى",
+      summary: (n: number) => `مبنى — ${apartmentsAr(n)}`,
+      licensedSummary: (n: number, licensed: number) => `${n} من ${licensed} مرخّصة`,
+      addApartments: "إضافة شقق",
+      requiresFacility: "توسيع المبنى يتطلب تصريح مرفق ضيافة سياحي.",
+      // Informational, same tint as the FE-5 note: null is the normal state of older units, and the way in is to classify.
+      classifyFirst: "لإضافة وحدات أخرى تحت نفس المبنى، حدّد نوع التصريح أولًا.",
+      capReached: (licensed: number) => `المبنى يستخدم كامل الوحدات المرخّصة (${licensed}). لتوسيعه حدّث التصريح أولًا.`,
+      dialogTitle: "إضافة شقق إلى المبنى",
+      dialogSub: "كل شقة تُضاف تصبح وحدة حقيقية، والحجز يخصم من المتاح في المبنى.",
+      totalLabel: "إجمالي عدد الشقق في المبنى",
+      // The number is the building's size AFTER the call, not how many to add — the
+      // single most important sentence on the screen.
+      totalHint: "اكتب حجم المبنى بعد الإضافة، وليس عدد الشقق الجديدة.",
+      currentLine: (current: number) => `مبناك فيه ${current} الآن.`,
+      deltaLine: (current: number, target: number, added: number) =>
+        `مبناك فيه ${current} الآن. إدخال ${target} يضيف ${added}.`,
+      noChange: "لن يتم إضافة أي شقق.",
+      shrinkBlocked: "لتقليل عدد الشقق تواصل مع الدعم.",
+      exceedsLicense: (licensed: number) => `تصريحك يغطي ${unitsAr(licensed)} فقط.`,
+      invalidCount: "أدخل عددًا صحيحًا أكبر من صفر.",
+      submit: "إضافة",
+      submitting: "جارٍ الإضافة…",
+      successAdded: (added: number, total: number) => `تمت إضافة ${apartmentsAr(added)}. مبناك الآن ${apartmentsAr(total)}.`,
+      successNone: (total: number) => `لم يطرأ تغيير — مبناك بالفعل ${apartmentsAr(total)}.`,
+      errNotFound: "لم يُعثر على الوحدة.",
+      errGeneric: "تعذّر توسيع المبنى. حاول مرة أخرى.",
     },
     // Empty / error
     states: {
@@ -1379,6 +1423,32 @@ export const dict: Record<Locale, Dict> = {
       required: "Required",
       language: "عربي",
     },
+    building: {
+      title: "Building",
+      summary: (n: number) => `Building — ${apartmentsEn(n)}`,
+      licensedSummary: (n: number, licensed: number) => `${n} of ${licensed} licensed`,
+      addApartments: "Add apartments",
+      requiresFacility: "Expanding the building requires a tourist hospitality facility licence.",
+      classifyFirst: "To add more units under the same building, set the licence type first.",
+      capReached: (licensed: number) => `The building already uses every licensed unit (${licensed}). Update the licence before expanding it.`,
+      dialogTitle: "Add apartments to the building",
+      dialogSub: "Each added apartment becomes a real unit, and a booking takes one from what the building has free.",
+      totalLabel: "Total apartments in the building",
+      totalHint: "Enter the building's size after the change, not the number of new apartments.",
+      currentLine: (current: number) => `Your building has ${current} now.`,
+      deltaLine: (current: number, target: number, added: number) =>
+        `Your building has ${current} now. Entering ${target} adds ${added}.`,
+      noChange: "No apartments will be added.",
+      shrinkBlocked: "To reduce the number of apartments, contact support.",
+      exceedsLicense: (licensed: number) => `Your licence covers ${licensed} unit${licensed === 1 ? "" : "s"} only.`,
+      invalidCount: "Enter a whole number above zero.",
+      submit: "Add",
+      submitting: "Adding…",
+      successAdded: (added: number, total: number) => `Added ${apartmentsEn(added)}. Your building now has ${apartmentsEn(total)}.`,
+      successNone: (total: number) => `Nothing changed — your building already has ${apartmentsEn(total)}.`,
+      errNotFound: "Unit not found.",
+      errGeneric: "The building could not be expanded. Please try again.",
+    },
     states: {
       errorTitle: "Something went wrong",
       errorBody: "We couldn't load this. Try again.",
@@ -2004,5 +2074,30 @@ export type Dict = {
     | "copyLink" | "copied" | "required" | "language",
     string
   >;
+  building: {
+    title: string;
+    summary: (n: number) => string;
+    licensedSummary: (n: number, licensed: number) => string;
+    addApartments: string;
+    requiresFacility: string;
+    classifyFirst: string;
+    capReached: (licensed: number) => string;
+    dialogTitle: string;
+    dialogSub: string;
+    totalLabel: string;
+    totalHint: string;
+    currentLine: (current: number) => string;
+    deltaLine: (current: number, target: number, added: number) => string;
+    noChange: string;
+    shrinkBlocked: string;
+    exceedsLicense: (licensed: number) => string;
+    invalidCount: string;
+    submit: string;
+    submitting: string;
+    successAdded: (added: number, total: number) => string;
+    successNone: (total: number) => string;
+    errNotFound: string;
+    errGeneric: string;
+  };
   states: Record<"errorTitle" | "errorBody" | "offline" | "notFound" | "serverError", string>;
 };

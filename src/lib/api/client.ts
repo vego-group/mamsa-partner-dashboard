@@ -24,6 +24,7 @@ import type {
   PartnerPayoutDetail,
   PartnerComplaintRow,
   PartnerComplaintDetail,
+  BuildingExpansion,
   UnitCreateInput,
   UploadKind,
 } from "@/types";
@@ -58,6 +59,7 @@ import {
   mockPresignUpload,
   createMockUnit,
   updateMockUnit,
+  expandMockBuilding,
   submitMockUnit,
   deleteMockUnit,
   markMockNotificationRead,
@@ -194,6 +196,45 @@ function assertMockLicenseRules(input: UnitCreateInput): void {
   if (input.licenseType === "private_hospitality" && (input.licensedUnitsCount ?? 0) > 1) {
     throw new ApiError(422, "لا ينطبق عدد الوحدات على هذا التصريح.", "LICENSED_UNITS_COUNT_NOT_APPLICABLE");
   }
+}
+
+/**
+ * Mock-mode stand-in for the rules behind `POST /units/:id/apartments`, in the
+ * order and envelopes the real route answers with: a bad body is a 400
+ * `VALIDATION` with `fields`, a licence refusal is a 422 with its code, and
+ * `QUANTITY_EXCEEDS_LICENSED_UNITS` carries the licensed count in `meta`.
+ * `MULTI_UNIT_DISABLED` is a deployment flag and is not modelled.
+ */
+function assertMockExpansionRules(unit: Unit, count: number): void {
+  if (!Number.isInteger(count) || count < 1) {
+    throw new ApiError(400, "بيانات غير صالحة.", "VALIDATION", { count: "العدد يجب أن يكون عددًا صحيحًا أكبر من صفر." });
+  }
+  if (unit.licenseType !== "tourist_facility") {
+    throw new ApiError(422, "التوسيع يتطلب تصريح مرفق سياحي.", "MULTI_UNIT_REQUIRES_FACILITY_LICENSE");
+  }
+  if (unit.licensedUnitsCount != null && count > unit.licensedUnitsCount) {
+    throw new ApiError(422, "العدد أكبر من المرخّص.", "QUANTITY_EXCEEDS_LICENSED_UNITS", undefined, {
+      licensed_units_count: unit.licensedUnitsCount,
+    });
+  }
+}
+
+/**
+ * The ONE place the expansion response is read. The contract is
+ * `{ groupId, groupSize, added, units, message }`; only `groupSize` and
+ * `added` are kept, so a change to the envelope is a change to this function
+ * and nothing else. A body without the two numbers is refused loudly rather
+ * than rendered as a success with blanks in it — the write may well have
+ * happened, and a refresh of the unit page shows the real size.
+ */
+function toBuildingExpansion(json: unknown): BuildingExpansion {
+  const j = (json ?? {}) as { groupSize?: unknown; added?: unknown };
+  const groupSize = Number(j.groupSize);
+  const added = Number(j.added);
+  if (!Number.isInteger(groupSize) || groupSize < 1 || !Number.isInteger(added) || added < 0) {
+    throw new ApiError(0, "استجابة غير متوقعة من الخادم.", "MALFORMED_RESPONSE");
+  }
+  return { groupSize, added };
 }
 
 export class ApiError extends Error {
@@ -429,6 +470,29 @@ export const api = {
       return submitMockUnit(id);
     }
     return http(`/units/${id}/submit`, { method: "POST" });
+  },
+
+  /**
+   * POST /units/:id/apartments — grow a building to `count` apartments in
+   * total. `count` is NOT an increment: 8 on a building of 5 adds 3, and 8
+   * again adds 0 (the response says so in `added`). Whether a `count` below
+   * the current size deletes anything is unanswered by the backend, so the
+   * dialog never sends one. Rejections keep their code and `meta`; the
+   * response's own Arabic `message` is dropped here and never displayed.
+   */
+  async expandBuilding(id: string, count: number): Promise<BuildingExpansion> {
+    if (USE_MOCK) {
+      await delay(600);
+      const u = mockUnits.find((x) => x.id === id);
+      if (!u) throw new ApiError(404, "لم يُعثر على الوحدة.", "NOT_FOUND");
+      assertMockExpansionRules(u, count);
+      return toBuildingExpansion(expandMockBuilding(id, count));
+    }
+    const json = await http<unknown>(endpoints.units.apartments(id), {
+      method: "POST",
+      body: JSON.stringify({ count }),
+    });
+    return toBuildingExpansion(json);
   },
 
   async deleteUnit(id: string): Promise<void> {

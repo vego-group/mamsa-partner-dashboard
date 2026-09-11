@@ -11,6 +11,7 @@ import { Card, Button } from "@/components/ui";
 import { UnitBadge } from "@/components/shared/status-badge";
 import { DateText } from "@/components/shared/typed-text";
 import { PriceBreakdown } from "@/features/units/components/price-breakdown";
+import { BuildingCard } from "@/features/units/components/building-card";
 import { RichText } from "@/components/shared/rich-text";
 import { isValidLatLng } from "@/features/units/lib/geo";
 import { LoadingSkeleton, ErrorState } from "@/components/shared/states";
@@ -19,7 +20,7 @@ import { AlertTriangle, CalendarDays, ExternalLink, Link2, RefreshCw } from "luc
 export default function UnitDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t, locale } = useLocale();
-  const { data: u, loading, error, reload } = useAsync(() => api.getUnit(id), [id]);
+  const { data: u, loading, error, reload, setData } = useAsync(() => api.getUnit(id), [id]);
 
   if (loading) return <LoadingSkeleton rows={4} />;
   if (error || !u) return <ErrorState onRetry={reload} />;
@@ -65,6 +66,9 @@ export default function UnitDetailPage() {
           </Link>
         </div>
       )}
+
+      {/* FE-7 — renders nothing for a standalone unit without a tourist facility licence. */}
+      <BuildingCard unit={u} onChange={setData} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {u.photos.map((p) => (
