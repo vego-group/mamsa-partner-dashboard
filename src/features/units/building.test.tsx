@@ -122,8 +122,17 @@ describe("expansionErrorMessage", () => {
   });
 
   it("makes added = 0 a different sentence from a real addition", () => {
-    expect(expansionResultMessage({ groupSize: 8, added: 3 }, b)).toBe("تمت إضافة 3 شقق. مبناك الآن 8 شقق.");
-    expect(expansionResultMessage({ groupSize: 8, added: 0 }, b)).toBe("لم يطرأ تغيير — مبناك بالفعل 8 شقق.");
+    expect(expansionResultMessage({ groupSize: 8, added: 3, pendingReview: 0 }, b)).toBe("تمت إضافة 3 شقق. مبناك الآن 8 شقق.");
+    expect(expansionResultMessage({ groupSize: 8, added: 0, pendingReview: 0 }, b)).toBe("لم يطرأ تغيير — مبناك بالفعل 8 شقق.");
+  });
+
+  it("mentions the review only when the response says the new rows are pending", () => {
+    expect(expansionResultMessage({ groupSize: 8, added: 3, pendingReview: 3 }, b)).toBe(
+      "تمت إضافة 3 شقق وهي قيد المراجعة. مبناك الحالي يستمر في استقبال الحجوزات.",
+    );
+    expect(expansionResultMessage({ groupSize: 8, added: 3, pendingReview: 0 }, b)).not.toContain("قيد المراجعة");
+    // Zero added is "nothing changed" even if the array somehow carried a pending row.
+    expect(expansionResultMessage({ groupSize: 8, added: 0, pendingReview: 1 }, b)).toBe(b.successNone(8));
   });
 });
 
@@ -152,17 +161,21 @@ describe("the API client on POST /units/:id/apartments", () => {
     return fetchMock;
   }
 
-  it("sends { count } as the body and keeps only groupSize and added from the response", async () => {
+  it("sends { count } as the body and keeps groupSize, added and the pending count from the response", async () => {
     const fetchMock = stubFetch(200, {
       groupId: "01K",
       groupSize: 8,
       added: 3,
-      units: [{ id: "u_30", apartmentNo: "1", status: "approved" }],
+      units: [
+        { id: "u_30", apartmentNo: "6", status: "pending" },
+        { id: "u_31", apartmentNo: "7", status: "pending" },
+        { id: "u_32", apartmentNo: "8", status: "approved" },
+      ],
       message: "تمت إضافة 3 وحدة إلى المبنى",
     });
     const { api: fresh } = await import("@/lib/api/client");
     const res = await fresh.expandBuilding("u_2", 8);
-    expect(res).toEqual({ groupSize: 8, added: 3 });
+    expect(res).toEqual({ groupSize: 8, added: 3, pendingReview: 2 });
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/units\/u_2\/apartments$/);
     expect(init.method).toBe("POST");
@@ -178,18 +191,13 @@ describe("the API client on POST /units/:id/apartments", () => {
     expect(e.fields).toEqual({ count: "مطلوب" });
   });
 
-  it("surfaces a 422 licence code from the nested envelope, with meta inside error or beside it", async () => {
+  // Confirmed by the backend on 2026-09-11: the count lives at `error.meta.licensed_units_count`.
+  it("surfaces a 422 licence code from the nested envelope with meta inside error", async () => {
     stubFetch(422, { error: { code: "QUANTITY_EXCEEDS_LICENSED_UNITS", message: "x", meta: { licensed_units_count: 8 } } });
-    let { api: fresh } = await import("@/lib/api/client");
-    let e = await fresh.expandBuilding("u_2", 9).catch((x) => x);
+    const { api: fresh } = await import("@/lib/api/client");
+    const e = await fresh.expandBuilding("u_2", 9).catch((x) => x);
     expect(e.status).toBe(422);
     expect(e.code).toBe("QUANTITY_EXCEEDS_LICENSED_UNITS");
-    expect(e.meta).toEqual({ licensed_units_count: 8 });
-
-    vi.resetModules();
-    stubFetch(422, { error: { code: "QUANTITY_EXCEEDS_LICENSED_UNITS", message: "x" }, meta: { licensed_units_count: 8 } });
-    ({ api: fresh } = await import("@/lib/api/client"));
-    e = await fresh.expandBuilding("u_2", 9).catch((x) => x);
     expect(e.meta).toEqual({ licensed_units_count: 8 });
   });
 
@@ -311,20 +319,29 @@ describe("the add-apartments dialog", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("grows the mock building, reports the real number added, and hands the new size back", async () => {
+  it("grows the mock building, says the new rows are under review, and hands the new size back", async () => {
     const { input, submit, onChange } = openDialog();
     fireEvent.change(input, { target: { value: "8" } });
     fireEvent.click(submit);
     const status = await screen.findByRole("status");
-    expect(status.textContent).toBe("تمت إضافة 3 شقق. مبناك الآن 8 شقق.");
+    expect(status.textContent).toBe("تمت إضافة 3 شقق وهي قيد المراجعة. مبناك الحالي يستمر في استقبال الحجوزات.");
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ id: building.id, groupSize: 8 }));
     // The server's own Arabic message is not what the partner reads.
     expect(screen.queryByText(/وحدة إلى المبنى/)).toBeNull();
     expect(mockUnits[1].groupSize).toBe(8);
   });
 
+  it("uses the plain success line when the response hands back approved rows", async () => {
+    vi.spyOn(api, "expandBuilding").mockResolvedValue({ groupSize: 8, added: 3, pendingReview: 0 });
+    const { input, submit } = openDialog();
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.click(submit);
+    const status = await screen.findByRole("status");
+    expect(status.textContent).toBe("تمت إضافة 3 شقق. مبناك الآن 8 شقق.");
+  });
+
   it("says nothing changed when the server adds zero, even though the request was sent", async () => {
-    vi.spyOn(api, "expandBuilding").mockResolvedValue({ groupSize: 8, added: 0 });
+    vi.spyOn(api, "expandBuilding").mockResolvedValue({ groupSize: 8, added: 0, pendingReview: 0 });
     const { input, submit } = openDialog();
     fireEvent.change(input, { target: { value: "8" } });
     fireEvent.click(submit);

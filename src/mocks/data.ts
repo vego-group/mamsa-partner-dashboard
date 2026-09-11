@@ -1140,10 +1140,12 @@ export function expandMockBuilding(id: string, count: number) {
     groupId: `grp_${u.id}`,
     groupSize: u.groupSize,
     added,
+    // Expansion submits the new rows for review itself (backend, 2026-09-12),
+    // so they come back pending — the dialog reads that off the rows, not a flag.
     units: Array.from({ length: added }, (_, i) => ({
       id: `${u.id}_apt_${current + i + 1}`,
       apartmentNo: String(current + i + 1),
-      status: "approved" as const,
+      status: "pending" as const,
     })),
     message: `تمت إضافة ${added} وحدة إلى المبنى`,
   };

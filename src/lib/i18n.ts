@@ -736,6 +736,9 @@ export const dict: Record<Locale, Dict> = {
       submit: "إضافة",
       submitting: "جارٍ الإضافة…",
       successAdded: (added: number, total: number) => `تمت إضافة ${apartmentsAr(added)}. مبناك الآن ${apartmentsAr(total)}.`,
+      // Only when the response says the new rows are pending — never assumed.
+      successPending: (added: number) =>
+        `تمت إضافة ${apartmentsAr(added)} وهي قيد المراجعة. مبناك الحالي يستمر في استقبال الحجوزات.`,
       successNone: (total: number) => `لم يطرأ تغيير — مبناك بالفعل ${apartmentsAr(total)}.`,
       errNotFound: "لم يُعثر على الوحدة.",
       errGeneric: "تعذّر توسيع المبنى. حاول مرة أخرى.",
@@ -1445,6 +1448,8 @@ export const dict: Record<Locale, Dict> = {
       submit: "Add",
       submitting: "Adding…",
       successAdded: (added: number, total: number) => `Added ${apartmentsEn(added)}. Your building now has ${apartmentsEn(total)}.`,
+      successPending: (added: number) =>
+        `Added ${apartmentsEn(added)}, now under review. Your current building keeps taking bookings.`,
       successNone: (total: number) => `Nothing changed — your building already has ${apartmentsEn(total)}.`,
       errNotFound: "Unit not found.",
       errGeneric: "The building could not be expanded. Please try again.",
@@ -2095,6 +2100,7 @@ export type Dict = {
     submit: string;
     submitting: string;
     successAdded: (added: number, total: number) => string;
+    successPending: (added: number) => string;
     successNone: (total: number) => string;
     errNotFound: string;
     errGeneric: string;

@@ -1,6 +1,6 @@
 import { ApiError } from "@/lib/api/client";
 import type { Dict } from "@/lib/i18n";
-import type { Unit } from "@/types";
+import type { BuildingExpansion, Unit } from "@/types";
 import { licenseErrorMessage } from "@/features/units/lib/license";
 
 /** `groupSize` is `1` for a standalone unit, and treated as `1` when absent or malformed. */
@@ -91,7 +91,13 @@ export function expansionErrorMessage(e: unknown, t: Dict): ExpansionError {
   return { scope: "form", text: b.errGeneric };
 }
 
-/** Success copy — `added: 0` is a "nothing changed", not a success. */
-export function expansionResultMessage(result: { groupSize: number; added: number }, b: Dict["building"]): string {
-  return result.added > 0 ? b.successAdded(result.added, result.groupSize) : b.successNone(result.groupSize);
+/**
+ * Success copy. `added: 0` is a "nothing changed", not a success. The review
+ * sentence appears only when the response itself says the new rows are
+ * pending — a deployment that hands back approved rows gets the plain line.
+ */
+export function expansionResultMessage(result: BuildingExpansion, b: Dict["building"]): string {
+  if (result.added === 0) return b.successNone(result.groupSize);
+  if (result.pendingReview > 0) return b.successPending(result.added);
+  return b.successAdded(result.added, result.groupSize);
 }

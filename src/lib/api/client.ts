@@ -221,20 +221,23 @@ function assertMockExpansionRules(unit: Unit, count: number): void {
 
 /**
  * The ONE place the expansion response is read. The contract is
- * `{ groupId, groupSize, added, units, message }`; only `groupSize` and
- * `added` are kept, so a change to the envelope is a change to this function
- * and nothing else. A body without the two numbers is refused loudly rather
+ * `{ groupId, groupSize, added, units, message }`; only `groupSize`, `added`
+ * and the status of each row in `units` are kept, so a change to the envelope
+ * is a change to this function and nothing else. `message` is dropped — the
+ * app is bilingual. A body without the two numbers is refused loudly rather
  * than rendered as a success with blanks in it — the write may well have
  * happened, and a refresh of the unit page shows the real size.
  */
 function toBuildingExpansion(json: unknown): BuildingExpansion {
-  const j = (json ?? {}) as { groupSize?: unknown; added?: unknown };
+  const j = (json ?? {}) as { groupSize?: unknown; added?: unknown; units?: unknown };
   const groupSize = Number(j.groupSize);
   const added = Number(j.added);
   if (!Number.isInteger(groupSize) || groupSize < 1 || !Number.isInteger(added) || added < 0) {
     throw new ApiError(0, "استجابة غير متوقعة من الخادم.", "MALFORMED_RESPONSE");
   }
-  return { groupSize, added };
+  const units = Array.isArray(j.units) ? (j.units as { status?: unknown }[]) : [];
+  const pendingReview = units.filter((u) => u?.status === "pending").length;
+  return { groupSize, added, pendingReview };
 }
 
 export class ApiError extends Error {

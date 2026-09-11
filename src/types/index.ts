@@ -233,6 +233,14 @@ export interface Unit {
 export interface BuildingExpansion {
   groupSize: number;
   added: number;
+  /**
+   * How many of the returned `units` came back `pending`. Expansion submits
+   * the new apartments for review itself (backend, 2026-09-12), so this is
+   * normally equal to `added` — but it is read from the response, never
+   * assumed, so a deployment that still hands back approved rows gets the
+   * plain success line rather than a review notice that is not true.
+   */
+  pendingReview: number;
 }
 
 /** All figures in SAR. `total` is the GROSS the guest paid, VAT included. */
