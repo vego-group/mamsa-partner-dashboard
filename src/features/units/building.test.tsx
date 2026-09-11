@@ -192,6 +192,11 @@ describe("the API client on POST /units/:id/apartments", () => {
   });
 
   // Confirmed by the backend on 2026-09-11: the count lives at `error.meta.licensed_units_count`.
+  // Deliberately stops at `e.meta`. This block re-imports the client after a module reset, so
+  // the error it throws is an ApiError from a different module instance than the one
+  // `expansionErrorMessage` checks with `instanceof` — the mapping would fail here for that
+  // reason alone, not because it is wrong. The meta → message step is covered in the
+  // "expansionErrorMessage" block above, which uses the same ApiError this file imports.
   it("surfaces a 422 licence code from the nested envelope with meta inside error", async () => {
     stubFetch(422, { error: { code: "QUANTITY_EXCEEDS_LICENSED_UNITS", message: "x", meta: { licensed_units_count: 8 } } });
     const { api: fresh } = await import("@/lib/api/client");
